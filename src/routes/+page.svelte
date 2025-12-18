@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { isAuthenticated, currentUser } from '$lib/stores/auth';
 	import { documents, loadDocuments, uploadDocument } from '$lib/stores/documents';
 	import { showToast } from '$lib/stores/toast';
@@ -14,12 +13,9 @@
 	let uploading = false;
 
 	onMount(() => {
-		if (!$isAuthenticated) {
-			goto('/landing');
-			return;
-		}
-		// Only load if documents are empty (use cache otherwise)
-		if ($documents.length === 0) {
+		// If the user is already authenticated when this page mounts, load documents.
+		// If not authenticated, `ProtectedRoute` will redirect to `/landing`.
+		if ($isAuthenticated && $documents.length === 0) {
 			loadDocuments($currentUser?.id || '');
 		}
 	});
@@ -67,7 +63,7 @@
 	}
 </script>
 
-<ProtectedRoute>
+<ProtectedRoute redirectTo="/landing">
 	<div class="flex min-h-screen flex-col bg-slate-50 text-slate-900">
 		<!-- <Sidebar /> -->
 
