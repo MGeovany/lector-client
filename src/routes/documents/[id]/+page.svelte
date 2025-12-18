@@ -1,11 +1,19 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
 	import ProtectedRoute from '$lib/components/ProtectedRoute.svelte';
 	import type { Document, TextBlock } from '$lib/api/types';
 	import { goto } from '$app/navigation';
-	import { ArrowLeft, ChevronLeft, ChevronRight, Moon, Sun, Type } from '@lucide/svelte';
+	import { ArrowLeft, ChevronLeft, ChevronRight, Moon, Sun, Type, Loader } from '@lucide/svelte';
 	import TextPreference from '$lib/components/TextPreference.svelte';
+	import { loadReadingPosition, updateReadingPosition } from '$lib/stores/preferences';
+	import { currentUser } from '$lib/stores/auth';
 
 	export let data: { document: Document };
+
+	let contentContainer: HTMLDivElement;
+	let preferencesPanel: HTMLDivElement;
+	let touchStartX = 0;
+	let touchEndX = 0;
 
 	const fontOptions = [
 		{
@@ -60,62 +68,252 @@
 	let lineHeight = 1.6; // Recommended line height
 	let currentPage = 1;
 	let showControls = false;
+	let savingPosition = false;
+	let loadingPosition = false;
 
 	let documentData: Document | null = data?.document ?? null;
 
-	$: documentData = data?.document ?? null;
+	// Normalize document data to handle different payload formats
+	$: documentData = data?.document ? normalizeDocument(data.document) : null;
 	$: selectedFont = fontOptions.find((font) => font.key === fontFamily) ?? fontOptions[0];
 	$: pages = groupContentByPage(documentData?.content ?? []);
-	$: totalPages = documentData?.metadata?.page_count || pages.length || 1;
+	$: totalPages = getPageCount(documentData);
 	$: currentPage = clamp(currentPage, 1, totalPages);
 	$: displayedBlocks = pages[currentPage - 1] ?? [];
 	$: progressPercent = Math.min(100, Math.max(0, (currentPage / totalPages) * 100));
 	$: currentTheme = themes[theme];
 	$: themeStyles = `background: ${currentTheme.bg}; color: ${currentTheme.text}; --bg-container: ${currentTheme.bgContainer}; --border-color: ${currentTheme.border}; --muted-color: ${currentTheme.muted};`;
 
+	// Normalize document to handle different payload formats from backend
+	function normalizeDocument(doc: any): Document {
+		// Normalize metadata (handle both camelCase and PascalCase)
+		const metadata = doc.metadata || {};
+		const normalizedMetadata = {
+			title: metadata.title || metadata.Title || doc.title || '',
+			author: metadata.author || metadata.Author || '',
+			page_count: metadata.page_count || metadata.PageCount || 0,
+			file_size: metadata.file_size || metadata.FileSize || doc.file_size || 0,
+			format: metadata.format || metadata.Format || 'pdf',
+			has_password: metadata.has_password || metadata.HasPassword || false
+		};
+
+		// Normalize content (ensure it's an array of TextBlock)
+		let normalizedContent: TextBlock[] = [];
+		if (Array.isArray(doc.content)) {
+			normalizedContent = doc.content.map((block: any) => ({
+				content: block.content || '',
+				type: (block.type || 'paragraph') as 'paragraph' | 'heading' | 'list' | 'table',
+				level: block.level || 0,
+				page_num: block.page_num || block.pageNum || 1,
+				position: block.position || 0
+			}));
+		}
+
+		return {
+			id: doc.id,
+			user_id: doc.user_id,
+			original_name: doc.original_name || doc.originalName || '',
+			title: doc.title || normalizedMetadata.title || '',
+			content: normalizedContent,
+			metadata: normalizedMetadata,
+			file_size: doc.file_size || doc.fileSize || 0,
+			created_at: doc.created_at || doc.createdAt || '',
+			updated_at: doc.updated_at || doc.updatedAt || ''
+		};
+	}
+
+	function getPageCount(doc: Document | null): number {
+		if (!doc) return 1;
+
+		// Try metadata first (PageCount or page_count)
+		const metadataPageCount = doc.metadata?.page_count || (doc.metadata as any)?.PageCount;
+		if (metadataPageCount && metadataPageCount > 0) {
+			return metadataPageCount;
+		}
+
+		// Fallback to counting unique pages in content
+		if (doc.content && doc.content.length > 0) {
+			const uniquePages = new Set(doc.content.map((block) => block.page_num));
+			return Math.max(uniquePages.size, 1);
+		}
+
+		return 1;
+	}
+
 	function groupContentByPage(content: TextBlock[]) {
 		const grouped = new Map<number, TextBlock[]>();
 
 		for (const block of content) {
-			const pageBlocks = grouped.get(block.page_num) ?? [];
+			const pageNum = block.page_num || 1;
+			const pageBlocks = grouped.get(pageNum) ?? [];
 			pageBlocks.push(block);
-			grouped.set(block.page_num, pageBlocks);
+			grouped.set(pageNum, pageBlocks);
 		}
 
 		return Array.from(grouped.entries())
 			.sort(([a], [b]) => a - b)
-			.map(([, blocks]) => blocks.sort((a, b) => a.position - b.position));
+			.map(([, blocks]) => blocks.sort((a, b) => (a.position || 0) - (b.position || 0)));
 	}
 
 	function clamp(value: number, min: number, max: number) {
 		return Math.min(Math.max(value, min), max);
 	}
 
-	function nextPage() {
-		if (currentPage < totalPages) currentPage += 1;
+	async function nextPage() {
+		if (currentPage < totalPages) {
+			currentPage += 1;
+			await savePosition();
+			// Scroll to top
+			if (contentContainer) {
+				contentContainer.scrollTo({ top: 0, behavior: 'smooth' });
+			}
+		}
 	}
 
-	function previousPage() {
-		if (currentPage > 1) currentPage -= 1;
+	async function previousPage() {
+		if (currentPage > 1) {
+			currentPage -= 1;
+			await savePosition();
+			// Scroll to top
+			if (contentContainer) {
+				contentContainer.scrollTo({ top: 0, behavior: 'smooth' });
+			}
+		}
 	}
 
 	function goBack() {
-		goto('/dashboard');
+		goto('/');
 	}
 
 	function toggleControls() {
 		showControls = !showControls;
 	}
+
+	async function savePosition() {
+		if (!documentData?.id || savingPosition) return;
+		savingPosition = true;
+		try {
+			await updateReadingPosition(documentData.id, {
+				page_number: currentPage,
+				position: currentPage - 1
+			});
+		} catch (error) {
+			console.error('Failed to save reading position:', error);
+		} finally {
+			savingPosition = false;
+		}
+	}
+
+	async function loadSavedPosition() {
+		if (!documentData?.id) return;
+		loadingPosition = true;
+		try {
+			const position = await loadReadingPosition(documentData.id);
+			if (position?.page_number) {
+				currentPage = Math.min(position.page_number, totalPages);
+			}
+		} catch (error) {
+			// Position might not exist yet, that's okay
+			console.log('No saved position found');
+		} finally {
+			loadingPosition = false;
+		}
+	}
+
+	function handleKeyDown(event: KeyboardEvent) {
+		// Don't handle if user is typing in an input
+		if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+			return;
+		}
+
+		if (event.key === 'ArrowRight') {
+			event.preventDefault();
+			nextPage();
+		} else if (event.key === 'ArrowLeft') {
+			event.preventDefault();
+			previousPage();
+		}
+	}
+
+	function handleTouchStart(event: TouchEvent) {
+		touchStartX = event.touches[0].clientX;
+	}
+
+	function handleTouchEnd(event: TouchEvent) {
+		touchEndX = event.changedTouches[0].clientX;
+		handleSwipe();
+	}
+
+	function handleSwipe() {
+		const swipeThreshold = 50;
+		const diff = touchStartX - touchEndX;
+
+		if (Math.abs(diff) > swipeThreshold) {
+			if (diff > 0) {
+				// Swipe left - next page
+				nextPage();
+			} else {
+				// Swipe right - previous page
+				previousPage();
+			}
+		}
+	}
+
+	function handleClickOutside(event: MouseEvent) {
+		if (!showControls) return;
+
+		// Check if click is outside the preferences panel and the toggle button
+		const target = event.target as HTMLElement;
+		if (
+			preferencesPanel &&
+			!preferencesPanel.contains(target) &&
+			!target.closest('button[aria-expanded]')
+		) {
+			showControls = false;
+		}
+	}
+
+	onMount(() => {
+		// Load saved position
+		loadSavedPosition();
+
+		// Add keyboard listeners
+		window.addEventListener('keydown', handleKeyDown);
+
+		// Add click outside listener
+		document.addEventListener('click', handleClickOutside);
+
+		// Return cleanup function
+		return () => {
+			window.removeEventListener('keydown', handleKeyDown);
+			document.removeEventListener('click', handleClickOutside);
+		};
+	});
+
+	onDestroy(() => {
+		savePosition();
+	});
 </script>
 
 <svelte:head>
-	<title>{documentData?.title ? `${documentData.title} — Lector` : 'Lector'}</title>
+	<title>{documentData?.title ? `Lector | ${documentData.title}` : 'Lector'}</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link
 		rel="stylesheet"
 		href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Montserrat:wght@400;600&family=Merriweather:wght@400;700&display=swap"
 	/>
+	<style>
+		/* Orange text selection */
+		::selection {
+			background-color: rgba(251, 146, 60, 0.3);
+			color: inherit;
+		}
+		::-moz-selection {
+			background-color: rgba(251, 146, 60, 0.3);
+			color: inherit;
+		}
+	</style>
 </svelte:head>
 
 <ProtectedRoute>
@@ -165,9 +363,12 @@
 				<main class="flex min-h-0 flex-1 flex-col">
 					<section class="flex min-h-0 flex-1 flex-col">
 						<div
+							bind:this={contentContainer}
 							class="flex flex-1 flex-col overflow-y-auto px-6 py-6"
 							style={`font-family: ${selectedFont.stack}; font-size: ${fontSize}px; line-height: ${lineHeight}; background-color: ${currentTheme.bg}; color: ${currentTheme.text};`}
 							aria-live="polite"
+							on:touchstart={handleTouchStart}
+							on:touchend={handleTouchEnd}
 						>
 							{#if documentData && displayedBlocks.length}
 								<div class="flex flex-col">
@@ -183,6 +384,16 @@
 											<p class="mb-4 text-inherit">{block.content}</p>
 										{/if}
 									{/each}
+								</div>
+							{:else if loadingPosition}
+								<div
+									class="flex flex-1 items-center justify-center text-center text-sm"
+									style={`color: var(--muted-color);`}
+								>
+									<div class="flex flex-col items-center gap-3">
+										<Loader class="h-6 w-6 animate-spin" style={`color: var(--muted-color);`} />
+										<p>Loading</p>
+									</div>
 								</div>
 							{:else if documentData}
 								<div
@@ -203,16 +414,18 @@
 					</section>
 
 					{#if showControls}
-						<TextPreference
-							{theme}
-							{fontSize}
-							{fontFamily}
-							{fontOptions}
-							{themes}
-							on:themeChange={(event) => (theme = event.detail as ThemeKey)}
-							on:fontSizeChange={(event) => (fontSize = Number(event.detail))}
-							on:fontFamilyChange={(event) => (fontFamily = event.detail as FontKey)}
-						/>
+						<div bind:this={preferencesPanel}>
+							<TextPreference
+								{theme}
+								{fontSize}
+								{fontFamily}
+								{fontOptions}
+								{themes}
+								on:themeChange={(event) => (theme = event.detail as ThemeKey)}
+								on:fontSizeChange={(event) => (fontSize = Number(event.detail))}
+								on:fontFamilyChange={(event) => (fontFamily = event.detail as FontKey)}
+							/>
+						</div>
 					{/if}
 
 					<footer

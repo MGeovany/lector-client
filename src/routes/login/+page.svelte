@@ -13,7 +13,7 @@
 
 	onMount(() => {
 		if ($isAuthenticated) {
-			goto('/dashboard');
+			goto('/');
 		}
 	});
 
@@ -25,7 +25,7 @@
 		loading = true;
 		try {
 			await loginWithEmail(email, password);
-			goto('/dashboard');
+			goto('/');
 		} catch (err: any) {
 			console.error('Login failed:', err);
 		} finally {

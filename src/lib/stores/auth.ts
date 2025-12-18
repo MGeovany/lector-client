@@ -89,7 +89,7 @@ export async function loginWithGoogle() {
 	const { data, error } = await supabase.auth.signInWithOAuth({
 		provider: 'google',
 		options: {
-			redirectTo: browser ? `${window.location.origin}/dashboard` : undefined
+			redirectTo: browser ? `${window.location.origin}/` : undefined
 		}
 	});
 

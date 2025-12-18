@@ -5,6 +5,7 @@
 	import { deleteDocument } from '$lib/stores/documents';
 	import { showToast } from '$lib/stores/toast';
 	import { Loader, Trash } from '@lucide/svelte';
+	import { shortenId } from '$lib/utils/id';
 
 	let deletingDocumentIds = new Set<string>();
 
@@ -30,7 +31,28 @@
 	}
 
 	function handleReadDocument(documentID: string) {
-		goto(`/documents/${documentID}`);
+		goto(`/documents/${shortenId(documentID)}`);
+	}
+
+	function getPageCount(document: any): number | null {
+		if (!document?.metadata) return null;
+
+		// Handle both camelCase and PascalCase
+		const pageCount = document.metadata.page_count || document.metadata.PageCount;
+
+		if (pageCount && pageCount > 0) {
+			return pageCount;
+		}
+
+		// Fallback: count unique pages from content if available
+		if (document.content && Array.isArray(document.content) && document.content.length > 0) {
+			const uniquePages = new Set(
+				document.content.map((block: any) => block.page_num || block.pageNum || 1)
+			);
+			return uniquePages.size > 0 ? uniquePages.size : null;
+		}
+
+		return null;
 	}
 </script>
 
@@ -65,7 +87,7 @@
 								<p class="mt-1 text-xs text-slate-500">{document.original_name}</p>
 							</td>
 							<td class="px-5 py-4 text-slate-700">
-								{document.metadata?.page_count ?? '—'}
+								{getPageCount(document) || '—'}
 							</td>
 							<td class="px-5 py-4 text-slate-700">{formatBytes(document.file_size)}</td>
 							<td class="px-5 py-4">

@@ -29,7 +29,6 @@
 
 <Toaster
 	position="top-center"
-	richColors
 	expand={false}
 	closeButton
 	toastOptions={{

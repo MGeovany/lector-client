@@ -26,7 +26,7 @@
 
 	<nav class="mt-2 flex flex-1 flex-col gap-1 px-2">
 		<a
-			href="/dashboard"
+			href="/"
 			class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100"
 			aria-current="page"
 		>

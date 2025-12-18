@@ -14,7 +14,8 @@
 
 	onMount(() => {
 		if ($isAuthenticated) {
-			loadDocuments($currentUser?.id || '');
+			// Only load if documents are empty (use cache otherwise)
+			$documents.length === 0 && loadDocuments($currentUser?.id || '');
 		}
 	});
 

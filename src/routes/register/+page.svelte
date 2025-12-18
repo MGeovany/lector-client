@@ -17,7 +17,7 @@
 
 	onMount(() => {
 		if ($isAuthenticated) {
-			goto('/dashboard');
+			goto('/');
 		}
 	});
 
