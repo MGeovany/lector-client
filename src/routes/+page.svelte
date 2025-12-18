@@ -15,7 +15,7 @@
 
 	onMount(() => {
 		if (!$isAuthenticated) {
-			goto('/login');
+			goto('/landing');
 			return;
 		}
 		// Only load if documents are empty (use cache otherwise)

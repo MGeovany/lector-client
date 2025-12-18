@@ -124,6 +124,11 @@ export async function logout() {
 		authError.set(error.message);
 		throw error;
 	}
+
+	// Redirect to login after successful logout
+	if (browser) {
+		window.location.href = '/login';
+	}
 }
 
 // Get current session token for API calls
