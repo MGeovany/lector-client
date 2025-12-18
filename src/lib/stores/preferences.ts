@@ -21,14 +21,16 @@ export const readingPositions = writable<Map<string, ReadingPosition>>(new Map()
 export const preferencesLoading = writable<boolean>(false);
 
 // Load user preferences
-export async function loadPreferences() {
+export async function loadPreferences(): Promise<UserPreferences> {
   preferencesLoading.set(true);
   try {
     const prefs = await PreferenceAPI.getPreferences();
     userPreferences.set(prefs);
+    return prefs;
   } catch (error) {
     console.error('Failed to load preferences:', error);
     userPreferences.set(defaultPreferences);
+    return defaultPreferences;
   } finally {
     preferencesLoading.set(false);
   }

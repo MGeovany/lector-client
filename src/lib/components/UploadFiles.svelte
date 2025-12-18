@@ -97,7 +97,30 @@
 				</thead>
 				<tbody class="divide-y divide-slate-200">
 					{#each $documents as document}
-						<tr class="hover:bg-slate-50/70">
+						<tr
+							class="hover:bg-slate-50/70 sm:cursor-default"
+							role="button"
+							tabindex="0"
+							on:click={(e) => {
+								// On mobile, clicking the row opens the book
+								// On desktop, only the Read button opens it
+								if (window.innerWidth < 640) {
+									const target = e.target as HTMLElement;
+									// Don't open if clicking on action buttons
+									if (!target.closest('button')) {
+										handleReadDocument(document.id);
+									}
+								}
+							}}
+							on:keydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									if (window.innerWidth < 640) {
+										e.preventDefault();
+										handleReadDocument(document.id);
+									}
+								}
+							}}
+						>
 							<td class="px-5 py-4">
 								<p class="max-w-md truncate font-medium text-slate-900">{document.title}</p>
 								<p class="mt-1 max-w-md truncate text-xs text-slate-500">
@@ -112,8 +135,8 @@
 								<div class="flex justify-end gap-2">
 									<button
 										type="button"
-										class="rounded-lg border bg-black px-8 py-1.5 text-sm font-medium text-white hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-60"
-										on:click={() => handleReadDocument(document.id)}
+										class="hidden rounded-lg border bg-black px-8 py-1.5 text-sm font-medium text-white hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-60 sm:inline-block"
+										on:click|stopPropagation={() => handleReadDocument(document.id)}
 										disabled={isDeleting(document.id)}
 										aria-label="Read document"
 									>
@@ -122,7 +145,7 @@
 									<button
 										type="button"
 										class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-										on:click={() =>
+										on:click|stopPropagation={() =>
 											openDeleteConfirmation(document.id, document.title, document.original_name)}
 										disabled={isDeleting(document.id)}
 										aria-label="Delete document"

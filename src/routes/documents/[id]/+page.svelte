@@ -5,8 +5,16 @@
 	import { goto } from '$app/navigation';
 	import { ArrowLeft, ChevronLeft, ChevronRight, Moon, Sun, Type, Loader } from '@lucide/svelte';
 	import TextPreference from '$lib/components/TextPreference.svelte';
-	import { loadReadingPosition, updateReadingPosition } from '$lib/stores/preferences';
+	import {
+		loadReadingPosition,
+		updateReadingPosition,
+		updatePreferences,
+		loadPreferences,
+		preferencesLoading,
+		userPreferences
+	} from '$lib/stores/preferences';
 	import { currentUser } from '$lib/stores/auth';
+	import { get } from 'svelte/store';
 
 	export let data: { document: Document };
 
@@ -62,14 +70,43 @@
 
 	type ThemeKey = keyof typeof themes;
 
-	let theme: ThemeKey = 'night'; // Optimal dark theme (recommended)
-	let fontSize = 17; // Recommended size for reduced eye strain
-	let fontFamily: FontKey = fontOptions[0].key; // Roboto
-	let lineHeight = 1.6; // Recommended line height
+	// Initialize from store if available, otherwise use defaults
+	function initializePreferencesFromStore() {
+		const prefs = get(userPreferences);
+		if (prefs && prefs.user_id) {
+			// Preferences are already loaded in store
+			const themeValue = prefs.theme === 'day' || prefs.theme === 'night' ? prefs.theme : 'night';
+			const fontKey = fontOptions.find(
+				(f) =>
+					f.key === prefs.font_family?.toLowerCase() ||
+					f.label.toLowerCase() === prefs.font_family?.toLowerCase()
+			)?.key;
+			return {
+				theme: themeValue as ThemeKey,
+				fontSize: prefs.font_size || 17,
+				fontFamily: (fontKey || fontOptions[0].key) as FontKey,
+				lineHeight: prefs.line_height || 1.6
+			};
+		}
+		// Return defaults
+		return {
+			theme: 'night' as ThemeKey,
+			fontSize: 17,
+			fontFamily: fontOptions[0].key as FontKey,
+			lineHeight: 1.6
+		};
+	}
+
+	const initialPrefs = initializePreferencesFromStore();
+	let theme: ThemeKey = initialPrefs.theme;
+	let fontSize = initialPrefs.fontSize;
+	let fontFamily: FontKey = initialPrefs.fontFamily;
+	let lineHeight = initialPrefs.lineHeight;
 	let currentPage = 1;
 	let showControls = false;
 	let savingPosition = false;
 	let loadingPosition = false;
+	let preferencesLoaded = false;
 
 	let documentData: Document | null = data?.document ?? null;
 
@@ -277,8 +314,85 @@
 		}
 	}
 
+	async function loadSavedPreferences() {
+		if (preferencesLoaded) return;
+
+		// Check if preferences are already in store (from previous load)
+		const storePrefs = get(userPreferences);
+		if (storePrefs && storePrefs.user_id) {
+			// Apply preferences from store immediately to avoid flash
+			applyPreferences(storePrefs);
+			preferencesLoaded = true;
+			return;
+		}
+
+		preferencesLoaded = true; // Set early to prevent multiple calls
+		try {
+			console.log('Loading saved preferences...');
+			const prefs = await loadPreferences();
+			console.log('Loaded preferences:', prefs);
+			applyPreferences(prefs);
+		} catch (error) {
+			console.error('Failed to load preferences:', error);
+			// If preferences don't exist yet, that's okay - use defaults
+		}
+	}
+
+	function applyPreferences(prefs: any) {
+		// Map backend preferences to local state
+		// Use explicit assignments to trigger reactivity
+		if (prefs.font_size && prefs.font_size > 0) {
+			fontSize = prefs.font_size;
+			console.log('Set font size to:', fontSize);
+		}
+		if (prefs.font_family) {
+			// Map font family string to FontKey
+			// Backend stores label (e.g., "Roboto", "Montserrat"), we need to find matching key
+			const fontKey = fontOptions.find(
+				(f) =>
+					f.key === prefs.font_family.toLowerCase() ||
+					f.label.toLowerCase() === prefs.font_family.toLowerCase()
+			)?.key;
+			if (fontKey) {
+				fontFamily = fontKey;
+				console.log('Set font family to:', fontFamily, 'from backend:', prefs.font_family);
+			} else {
+				console.warn(
+					'Could not find font key for:',
+					prefs.font_family,
+					'available keys:',
+					fontOptions.map((f) => f.key)
+				);
+			}
+		}
+		if (prefs.theme && (prefs.theme === 'day' || prefs.theme === 'night')) {
+			theme = prefs.theme;
+			console.log('Set theme to:', theme);
+		}
+		if (prefs.line_height && prefs.line_height > 0) {
+			lineHeight = prefs.line_height;
+			console.log('Set line height to:', lineHeight);
+		}
+	}
+
+	async function savePreferences() {
+		if (!$currentUser?.id) return;
+		try {
+			const selectedFont = fontOptions.find((f) => f.key === fontFamily);
+			await updatePreferences({
+				font_size: fontSize,
+				font_family: selectedFont?.label || 'Roboto',
+				theme: theme,
+				line_height: lineHeight
+			});
+		} catch (error) {
+			console.error('Failed to save preferences:', error);
+		}
+	}
+
 	onMount(() => {
-		// Load saved position
+		// Load saved preferences and position (don't await - let them run in background)
+		loadSavedPreferences();
 		loadSavedPosition();
 
 		// Add keyboard listeners
@@ -321,7 +435,7 @@
 </svelte:head>
 
 <ProtectedRoute>
-	<div class="h-screen" style={themeStyles}>
+	<div class="fixed inset-0 h-screen overflow-hidden" style={themeStyles}>
 		<div class="mx-auto flex h-full max-w-6xl flex-1 flex-col px-4 py-6">
 			<div
 				class="flex h-full flex-col overflow-hidden rounded-3xl border shadow-xl"
@@ -333,7 +447,7 @@
 				>
 					<div class="flex items-center gap-3">
 						<button
-							class="flex h-11 w-11 items-center justify-center rounded-2xl border text-sm font-semibold transition hover:opacity-80"
+							class="flex h-11 min-h-[44px] w-11 min-w-[44px] flex-shrink-0 items-center justify-center rounded-2xl border text-sm font-semibold transition hover:opacity-80"
 							style={`background-color: var(--bg-container); border-color: var(--border-color); color: var(--muted-color);`}
 							on:click={goBack}
 							aria-label="Back to library"
@@ -374,7 +488,17 @@
 							on:touchstart={handleTouchStart}
 							on:touchend={handleTouchEnd}
 						>
-							{#if documentData && displayedBlocks.length}
+							{#if ($preferencesLoading || !preferencesLoaded) && !documentData}
+								<div
+									class="flex flex-1 items-center justify-center text-center text-sm"
+									style={`color: var(--muted-color);`}
+								>
+									<div class="flex flex-col items-center gap-2">
+										<Loader class="h-5 w-5 animate-spin" style={`color: var(--muted-color);`} />
+										<span>Loading preferences…</span>
+									</div>
+								</div>
+							{:else if documentData && displayedBlocks.length}
 								<div class="flex flex-col">
 									{#each displayedBlocks as block (block.page_num + '-' + block.position)}
 										{#if block.type === 'heading'}
@@ -425,9 +549,18 @@
 								{fontFamily}
 								{fontOptions}
 								{themes}
-								on:themeChange={(event) => (theme = event.detail as ThemeKey)}
-								on:fontSizeChange={(event) => (fontSize = Number(event.detail))}
-								on:fontFamilyChange={(event) => (fontFamily = event.detail as FontKey)}
+								on:themeChange={(event) => {
+									theme = event.detail as ThemeKey;
+									savePreferences();
+								}}
+								on:fontSizeChange={(event) => {
+									fontSize = Number(event.detail);
+									savePreferences();
+								}}
+								on:fontFamilyChange={(event) => {
+									fontFamily = event.detail as FontKey;
+									savePreferences();
+								}}
 							/>
 						</div>
 					{/if}
