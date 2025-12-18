@@ -1,14 +1,11 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { documents, documentsLoading } from '$lib/stores/documents';
 	import { formatBytes } from '../../utils/format';
 	import { deleteDocument } from '$lib/stores/documents';
 	import { Loader, Trash } from '@lucide/svelte';
 
 	let deletingDocumentIds = new Set<string>();
-
-	function openFile(file: string) {
-		window.open(file, 'filewin');
-	}
 
 	function isDeleting(documentID: string) {
 		return deletingDocumentIds.has(documentID);
@@ -25,6 +22,10 @@
 			next.delete(documentID);
 			deletingDocumentIds = next;
 		}
+	}
+
+	function handleReadDocument(documentID: string) {
+		goto(`/documents/${documentID}`);
 	}
 </script>
 
@@ -67,7 +68,7 @@
 									<button
 										type="button"
 										class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-										on:click={() => openFile((document as any).file_path)}
+										on:click={() => handleReadDocument(document.id)}
 										disabled={isDeleting(document.id)}
 										aria-label="Read document"
 									>
