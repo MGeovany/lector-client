@@ -8,12 +8,28 @@
 	import { shortenId } from '$lib/utils/id';
 
 	let deletingDocumentIds = new Set<string>();
+	let confirmDeleteId: string | null = null;
+	let confirmDeleteTitle = '';
 
 	function isDeleting(documentID: string) {
 		return deletingDocumentIds.has(documentID);
 	}
 
-	async function handleDeleteDocument(documentID: string) {
+	function openDeleteConfirmation(
+		documentID: string,
+		title: string | undefined,
+		originalName: string | undefined
+	) {
+		confirmDeleteId = documentID;
+		confirmDeleteTitle = title || originalName || 'this book';
+	}
+
+	async function confirmDelete() {
+		if (!confirmDeleteId) return;
+
+		const documentID = confirmDeleteId;
+		confirmDeleteId = null;
+
 		if (deletingDocumentIds.has(documentID)) return;
 
 		deletingDocumentIds = new Set(deletingDocumentIds).add(documentID);
@@ -83,8 +99,10 @@
 					{#each $documents as document}
 						<tr class="hover:bg-slate-50/70">
 							<td class="px-5 py-4">
-								<p class="font-medium text-slate-900">{document.title}</p>
-								<p class="mt-1 text-xs text-slate-500">{document.original_name}</p>
+								<p class="max-w-md truncate font-medium text-slate-900">{document.title}</p>
+								<p class="mt-1 max-w-md truncate text-xs text-slate-500">
+									{document.original_name}
+								</p>
 							</td>
 							<td class="px-5 py-4 text-slate-700">
 								{getPageCount(document) || '—'}
@@ -94,7 +112,7 @@
 								<div class="flex justify-end gap-2">
 									<button
 										type="button"
-										class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+										class="rounded-lg border bg-black px-8 py-1.5 text-sm font-medium text-white hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-60"
 										on:click={() => handleReadDocument(document.id)}
 										disabled={isDeleting(document.id)}
 										aria-label="Read document"
@@ -103,8 +121,9 @@
 									</button>
 									<button
 										type="button"
-										class="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-										on:click={() => handleDeleteDocument(document.id)}
+										class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+										on:click={() =>
+											openDeleteConfirmation(document.id, document.title, document.original_name)}
 										disabled={isDeleting(document.id)}
 										aria-label="Delete document"
 										aria-busy={isDeleting(document.id)}
@@ -121,6 +140,37 @@
 					{/each}
 				</tbody>
 			</table>
+		</div>
+	{/if}
+
+	{#if confirmDeleteId}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+			<div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+				<h3 class="text-sm font-semibold text-slate-900">Delete book</h3>
+				<p class="mt-2 text-sm text-slate-600">
+					Are you sure you want to delete
+					<span class="font-semibold text-slate-900">"{confirmDeleteTitle}"</span>? This action
+					cannot be undone.
+				</p>
+
+				<div class="mt-6 flex justify-end gap-2">
+					<button
+						type="button"
+						class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+						on:click={() => (confirmDeleteId = null)}
+					>
+						Cancel
+					</button>
+					<button
+						type="button"
+						class="inline-flex items-center gap-2 rounded-lg border bg-black px-3 py-1.5 text-sm font-medium text-white hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-60"
+						on:click={confirmDelete}
+					>
+						<Trash class="h-4 w-4" />
+						Delete
+					</button>
+				</div>
+			</div>
 		</div>
 	{/if}
 </section>
