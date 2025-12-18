@@ -64,6 +64,7 @@
 	"dependencies": {
 		"@lucide/svelte": "^0.561.0",
 		"@supabase/supabase-js": "^2.87.3",
-		"axios": "^1.13.2"
+		"axios": "^1.13.2",
+		"svelte-sonner": "^1.0.7"
 	}
 }

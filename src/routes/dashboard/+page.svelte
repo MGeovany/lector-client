@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { isAuthenticated, currentUser } from '$lib/stores/auth';
 	import { documents, loadDocuments, uploadDocument } from '$lib/stores/documents';
+	import { showToast } from '$lib/stores/toast';
 	import ProtectedRoute from '$lib/components/ProtectedRoute.svelte';
 	import { Loader, Plus } from '@lucide/svelte';
 	import { formatBytes } from '../../utils/format';
@@ -35,6 +36,10 @@
 			try {
 				await uploadDocument(selectedFile);
 				(e.target as HTMLInputElement).value = '';
+				showToast('Book added successfully', 'success');
+			} catch (error) {
+				console.error('Upload failed', error);
+				showToast('Failed to add book', 'error');
 			} finally {
 				uploading = false;
 			}

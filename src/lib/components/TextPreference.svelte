@@ -8,6 +8,9 @@
 		stack: string;
 	};
 
+	const MIN_FONT_SIZE = 15;
+	const MAX_FONT_SIZE = 26;
+
 	type Theme = 'day' | 'night';
 
 	const dispatch = createEventDispatcher<{
@@ -22,7 +25,7 @@
 export let mutedClass = 'text-slate-500';
 export let fontOptions: ReadonlyArray<FontOption> = [];
 // Slider fill percentage to drive the iOS-like gradient
-$: sliderPercent = Math.min(100, Math.max(0, ((fontSize - 15) / 11) * 100));
+$: sliderPercent = Math.min(100, Math.max(0, ((fontSize - MIN_FONT_SIZE) / (MAX_FONT_SIZE - MIN_FONT_SIZE)) * 100));
 
 	function setTheme(next: Theme) {
 		if (theme !== next) {
@@ -40,8 +43,21 @@ $: sliderPercent = Math.min(100, Math.max(0, ((fontSize - 15) / 11) * 100));
 
 	function handleSizeInput(event: Event) {
 		const next = Number((event.currentTarget as HTMLInputElement)?.value ?? fontSize);
-		fontSize = next;
-		dispatch('fontSizeChange', next);
+		setFontSize(next);
+	}
+
+	function setFontSize(next: number) {
+		const clamped = clamp(next, MIN_FONT_SIZE, MAX_FONT_SIZE);
+		fontSize = clamped;
+		dispatch('fontSizeChange', clamped);
+	}
+
+	function adjustFont(delta: number) {
+		setFontSize(fontSize + delta);
+	}
+
+	function clamp(value: number, min: number, max: number) {
+		return Math.min(Math.max(value, min), max);
 	}
 </script>
 
@@ -53,11 +69,19 @@ $: sliderPercent = Math.min(100, Math.max(0, ((fontSize - 15) / 11) * 100));
 		<div>
 			<p class={`text-xs font-semibold tracking-[0.18em] uppercase ${mutedClass}`}>Size</p>
 			<div class="mt-2 flex items-center gap-3">
-				<span class={`text-sm font-semibold ${mutedClass}`}>Aa</span>
+				<button
+					type="button"
+					class="motion-pill flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-base font-bold text-slate-700 shadow-sm hover:-translate-y-px hover:shadow transition"
+					on:click={() => adjustFont(-1)}
+					aria-label="Decrease font size"
+					disabled={fontSize <= MIN_FONT_SIZE}
+				>
+					-
+				</button>
 				<input
 					type="range"
-					min="15"
-					max="26"
+					min={MIN_FONT_SIZE}
+					max={MAX_FONT_SIZE}
 					step="1"
 					value={fontSize}
 					on:input={handleSizeInput}
@@ -65,7 +89,15 @@ $: sliderPercent = Math.min(100, Math.max(0, ((fontSize - 15) / 11) * 100));
 					style={`--slider-percent:${sliderPercent}%;`}
 					aria-label="Adjust font size"
 				/>
-				<span class="text-base font-semibold text-slate-700">Aa</span>
+				<button
+					type="button"
+					class="motion-pill flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-base font-bold text-slate-700 shadow-sm hover:-translate-y-px hover:shadow transition"
+					on:click={() => adjustFont(1)}
+					aria-label="Increase font size"
+					disabled={fontSize >= MAX_FONT_SIZE}
+				>
+					+
+				</button>
 			</div>
 		</div>
 

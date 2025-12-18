@@ -3,6 +3,7 @@
 	import { documents, documentsLoading } from '$lib/stores/documents';
 	import { formatBytes } from '../../utils/format';
 	import { deleteDocument } from '$lib/stores/documents';
+	import { showToast } from '$lib/stores/toast';
 	import { Loader, Trash } from '@lucide/svelte';
 
 	let deletingDocumentIds = new Set<string>();
@@ -17,6 +18,10 @@
 		deletingDocumentIds = new Set(deletingDocumentIds).add(documentID);
 		try {
 			await deleteDocument(documentID);
+			showToast('Book deleted', 'success');
+		} catch (error) {
+			console.error('Failed to delete document', error);
+			showToast('Failed to delete book', 'error');
 		} finally {
 			const next = new Set(deletingDocumentIds);
 			next.delete(documentID);
