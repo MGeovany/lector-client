@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { ArrowRight } from '@lucide/svelte';
 	import { isAuthenticated, authLoading } from '$lib/stores/auth';
-	import { onMount } from 'svelte';
 
 	function handleDashboardClick() {
 		if ($isAuthenticated) {
@@ -13,18 +12,18 @@
 	}
 </script>
 
-<div class="flex h-screen flex-col overflow-hidden bg-[#f7f4ec] text-slate-900">
+<div class="bg-cream flex h-screen flex-col overflow-hidden text-slate-900">
 	<!-- Navigation (Medium-like) -->
 	<nav class="shrink-0 border-b border-black/15">
 		<div class="mx-auto max-w-6xl px-6 py-3">
 			<div class="flex items-center justify-between gap-6">
-				<a href="/landing" class="text-2xl font-semibold tracking-tight">Lector</a>
+				<a href="/landing" class="font-brand text-2xl font-bold tracking-tight">Lector</a>
 
 				<div class="flex items-center gap-3 sm:gap-4">
 					<div class="hidden items-center gap-5 text-sm text-slate-900/90 md:flex">
-						<a class="underline-offset-4 hover:underline" href="/landing">the story</a>
-						<a class="underline-offset-4 hover:underline" href="/landing">How it works</a>
-						<a class="underline-offset-4 hover:underline" href="/landing">Support</a>
+						<a class="underline-offset-4 hover:underline" href="/story">the story</a>
+						<a class="underline-offset-4 hover:underline" href="/how-it-works">How it works</a>
+						<a class="underline-offset-4 hover:underline" href="/support">Support</a>
 					</div>
 
 					<button
@@ -41,14 +40,14 @@
 
 	<!-- Hero -->
 	<section class="flex flex-1 items-center overflow-hidden border-b border-black/15">
-		<div class="mx-auto grid w-full max-w-6xl items-center gap-8 px-6 lg:grid-cols-2">
-			<div class="max-w-xl">
+		<div class="mx-auto grid w-full max-w-6xl items-center gap-8 px-6 lg:grid-cols-1">
+			<div class="max-w-5xl">
 				<p class="mb-3 text-xs font-semibold tracking-[0.18em] text-slate-900/70 uppercase">
 					Lector • focused reading
 				</p>
 
 				<h1
-					class="text-[2.8rem] leading-[0.95] tracking-tight text-slate-950 sm:text-[3.8rem] lg:text-[6rem]"
+					class="text-[2.8rem] leading-[0.95] tracking-tight text-slate-950 sm:text-[3.8rem] lg:text-9xl"
 					style="font-family: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;"
 				>
 					Where reading feels right
@@ -73,26 +72,24 @@
 				{/if}
 			</div>
 
-			<!-- Visual placeholder (no images) -->
-			<div class="hidden lg:block">
+			<!-- Hero Image -->
+			<!-- 	<div class="hidden lg:block">
 				<div
-					class="relative aspect-4/3 w-full overflow-hidden rounded-[28px] border border-black/15 bg-[#f7f4ec]"
+					class="bg-cream relative aspect-4/3 w-full overflow-hidden rounded-[28px] border border-black/15"
 				>
+					<img
+						src="/hero.webp"
+						alt="Lector reading experience"
+						class="h-full w-full object-cover"
+					/>
 					<div
-						class="absolute inset-0"
-						style="background:
-							radial-gradient(600px 280px at 20% 20%, rgba(0,0,0,0.08), transparent 60%),
-							radial-gradient(520px 260px at 80% 30%, rgba(0,0,0,0.06), transparent 62%),
-							radial-gradient(700px 380px at 50% 85%, rgba(0,0,0,0.05), transparent 60%);"
-					></div>
-					<div
-						class="absolute right-5 bottom-5 left-5 rounded-2xl border border-black/10 bg-white/40 p-4"
+						class="bg-cream absolute right-5 bottom-5 left-5 rounded-2xl border border-black/10 p-4"
 					>
 						<p class="text-sm font-medium text-slate-900/85">Your library, your way</p>
 						<p class="mt-1 text-xs text-slate-900/60">Theme, size, spacing, and focus.</p>
 					</div>
 				</div>
-			</div>
+			</div> -->
 		</div>
 	</section>
 
@@ -104,24 +101,15 @@
 			>
 				<p>© {new Date().getFullYear()} Lector</p>
 				<div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/landing">Help</a
-					>
-					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/landing"
-						>Status</a
-					>
-					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/landing"
-						>About</a
-					>
-					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/landing"
+					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/about">About</a>
+					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/privacy"
 						>Privacy</a
 					>
-					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/landing"
-						>Terms</a
+					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/terms">Terms</a>
+					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/conduct"
+						>Community Guidelines</a
 					>
-					<a
-						class="underline-offset-4 hover:text-slate-900 hover:underline"
-						href="mailto:marlon.castro@thefndrs.com"
-					>
+					<a class="underline-offset-4 hover:text-slate-900 hover:underline" href="/contact">
 						Contact
 					</a>
 				</div>

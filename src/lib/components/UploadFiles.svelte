@@ -53,8 +53,8 @@
 	function getPageCount(document: any): number | null {
 		if (!document?.metadata) return null;
 
-		// Handle both camelCase and PascalCase
-		const pageCount = document.metadata.page_count || document.metadata.PageCount;
+		// Backend returns snake_case
+		const pageCount = document.metadata.page_count;
 
 		if (pageCount && pageCount > 0) {
 			return pageCount;
@@ -63,7 +63,7 @@
 		// Fallback: count unique pages from content if available
 		if (document.content && Array.isArray(document.content) && document.content.length > 0) {
 			const uniquePages = new Set(
-				document.content.map((block: any) => block.page_num || block.pageNum || 1)
+				document.content.map((block: any) => block.page_number || 1)
 			);
 			return uniquePages.size > 0 ? uniquePages.size : null;
 		}
@@ -124,13 +124,15 @@
 							<td class="px-5 py-4">
 								<p class="max-w-md truncate font-medium text-slate-900">{document.title}</p>
 								<p class="mt-1 max-w-md truncate text-xs text-slate-500">
-									{document.original_name}
+									{document.author}
 								</p>
 							</td>
 							<td class="px-5 py-4 text-slate-700">
 								{getPageCount(document) || '—'}
 							</td>
-							<td class="px-5 py-4 text-slate-700">{formatBytes(document.file_size)}</td>
+							<td class="px-5 py-4 text-slate-700">
+								{formatBytes(document.metadata.file_size ?? 0)}
+							</td>
 							<td class="px-5 py-4">
 								<div class="flex justify-end gap-2">
 									<button
@@ -146,7 +148,7 @@
 										type="button"
 										class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
 										on:click|stopPropagation={() =>
-											openDeleteConfirmation(document.id, document.title, document.original_name)}
+											openDeleteConfirmation(document.id, document.title, document.author)}
 										disabled={isDeleting(document.id)}
 										aria-label="Delete document"
 										aria-busy={isDeleting(document.id)}

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resetPassword, authError } from '$lib/stores/auth';
-	import { goto } from '$app/navigation';
 
 	let email = '';
 	let loading = false;
@@ -38,7 +37,9 @@
 						<p class="text-xs font-semibold tracking-[0.2em] text-slate-500 uppercase">Lector</p>
 						<h2 class="mt-2 text-2xl font-semibold text-slate-900">Reset password</h2>
 						<p class="mt-1 text-sm text-slate-600">
-							{success ? 'Check your email for reset instructions.' : 'Enter your email to reset your password.'}
+							{success
+								? 'Check your email for reset instructions.'
+								: 'Enter your email to reset your password.'}
 						</p>
 					</div>
 				</div>
@@ -56,11 +57,12 @@
 						<div
 							class="rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-sm text-green-700"
 						>
-							Password reset email sent! Check your inbox and follow the instructions to reset your password.
+							Password reset email sent! Check your inbox and follow the instructions to reset your
+							password.
 						</div>
-						
+
 						<div class="text-center">
-							<a href="/login" class="text-sm text-slate-900 hover:underline font-medium">
+							<a href="/login" class="text-sm font-medium text-slate-900 hover:underline">
 								Back to sign in
 							</a>
 						</div>
@@ -68,7 +70,7 @@
 						<!-- Reset Form -->
 						<form on:submit|preventDefault={handleResetPassword} class="space-y-4">
 							<div>
-								<label for="email" class="block text-sm font-medium text-slate-700 mb-1">
+								<label for="email" class="mb-1 block text-sm font-medium text-slate-700">
 									Email address
 								</label>
 								<input
@@ -77,7 +79,7 @@
 									bind:value={email}
 									on:keypress={handleKeyPress}
 									required
-									class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+									class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-none"
 									placeholder="Enter your email"
 								/>
 							</div>
@@ -85,21 +87,21 @@
 							<button
 								type="submit"
 								disabled={loading || !email}
-								class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+								class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{loading ? 'Sending...' : 'Send reset email'}
 							</button>
 						</form>
 
 						<!-- Links -->
-						<div class="text-center space-y-2">
+						<div class="space-y-2 text-center">
 							<p class="text-xs text-slate-500">
 								Remember your password?
-								<a href="/login" class="text-slate-900 hover:underline font-medium">Sign in</a>
+								<a href="/login" class="font-medium text-slate-900 hover:underline">Sign in</a>
 							</p>
 							<p class="text-xs text-slate-500">
 								Don't have an account?
-								<a href="/register" class="text-slate-900 hover:underline font-medium">Sign up</a>
+								<a href="/register" class="font-medium text-slate-900 hover:underline">Sign up</a>
 							</p>
 						</div>
 					{/if}

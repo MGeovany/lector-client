@@ -56,7 +56,7 @@
 	<meta name="robots" content="index, follow" />
 </svelte:head>
 
-<main class="min-h-screen bg-gray-50">
+<main class="bg-cream h-full">
 	<slot />
 
 	{#if $authLoading && !['/login', '/register', '/forgot-password', '/landing'].includes($page.url.pathname)}

@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import { getSessionToken } from '$lib/stores/auth';
-import type { User } from '@supabase/supabase-js';
 
 // Create axios instance with base configuration
 const api = axios.create({

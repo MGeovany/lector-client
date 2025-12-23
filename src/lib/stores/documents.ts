@@ -2,6 +2,35 @@ import { writable, get } from 'svelte/store';
 import type { Document } from '$lib/api/types';
 import { DocumentAPI } from '$lib/api';
 
+function isBadTimestamp(value: string | null | undefined): boolean {
+	if (!value) return true;
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return true;
+	// Backend sometimes returns year 1 / placeholder dates; treat anything pre-2000 as invalid for uploaded_at.
+	return date.getFullYear() < 2000;
+}
+
+function normalizeDocument(doc: Document): Document {
+	const created = doc?.created_at ?? '';
+	const updated = doc?.updated_at ?? '';
+	const safeCreatedAt = isBadTimestamp(created)
+		? isBadTimestamp(updated)
+			? ''
+			: updated
+		: created;
+	const safeUpdatedAt = isBadTimestamp(updated) ? safeCreatedAt : updated;
+
+	return {
+		...doc,
+		created_at: safeCreatedAt,
+		updated_at: safeUpdatedAt
+	} as Document;
+}
+
+function normalizeDocuments(docs: Document[]): Document[] {
+	return (docs ?? []).map(normalizeDocument);
+}
+
 // Document state
 export const documents = writable<Document[]>([]);
 export const currentDocument = writable<Document | null>(null);
@@ -21,7 +50,7 @@ export async function loadDocuments(userID: string, forceRefresh = false) {
 
 	// Return cached data if available and not expired
 	const now = Date.now();
-	if (!forceRefresh && documentsCache && (now - lastLoadTime) < CACHE_DURATION) {
+	if (!forceRefresh && documentsCache && now - lastLoadTime < CACHE_DURATION) {
 		// Get current documents from store
 		const currentDocsValue = get(documents);
 
@@ -36,10 +65,11 @@ export async function loadDocuments(userID: string, forceRefresh = false) {
 	documentsLoading.set(true);
 	try {
 		const docs = await DocumentAPI.getDocumentsByUserID(userID);
-		documentsCache = docs;
+		const normalized = normalizeDocuments(docs);
+		documentsCache = normalized;
 		lastLoadTime = now;
 		lastUserID = userID;
-		documents.set(docs);
+		documents.set(normalized);
 	} catch (error) {
 		console.error('Failed to load documents:', error);
 		documents.set([]);
@@ -51,7 +81,8 @@ export async function loadDocuments(userID: string, forceRefresh = false) {
 // Upload document
 export async function uploadDocument(file: File) {
 	try {
-		const document = await DocumentAPI.uploadDocument(file);
+		const document = normalizeDocument(await DocumentAPI.uploadDocument(file));
+
 		documents.update((docs) => [document, ...docs]);
 		// Update cache
 		const currentDocs = get(documents);
@@ -79,6 +110,67 @@ export async function deleteDocument(id: string) {
 		currentDocument.update((current) => (current?.id === id ? null : current));
 	} catch (error) {
 		console.error('Failed to delete document:', error);
+		throw error;
+	}
+}
+
+// Update document details (title/author/tag) with optimistic updates
+export async function updateDocumentDetails(
+	id: string,
+	updates: { title?: string; author?: string; tag?: string }
+) {
+	// Get current document state
+	const currentDocs = get(documents);
+	const currentDoc = currentDocs.find((d) => d.id === id);
+	
+	// Create optimistic update
+	const optimisticDoc: Document | null = currentDoc
+		? {
+				...currentDoc,
+				...(updates.title !== undefined && { title: updates.title }),
+				...(updates.author !== undefined && { author: updates.author }),
+				...(updates.tag !== undefined && { tag: updates.tag }),
+				updated_at: new Date().toISOString()
+			}
+		: null;
+
+	// Apply optimistic update immediately
+	if (optimisticDoc) {
+		documents.update((docs) => docs.map((d) => (d.id === id ? optimisticDoc : d)));
+		// Update cache
+		documentsCache = get(documents);
+		lastLoadTime = Date.now();
+		// Update current document if needed
+		currentDocument.update((current) => (current?.id === id ? optimisticDoc : current));
+	}
+
+	try {
+		// Sync with backend
+		const updated = normalizeDocument(await DocumentAPI.updateDocument(id, updates));
+		
+		// Update with server response (in case server made additional changes)
+		documents.update((docs) => docs.map((d) => (d.id === id ? updated : d)));
+		
+		// Update cache
+		const finalDocs = get(documents);
+		documentsCache = finalDocs;
+		lastLoadTime = Date.now();
+		
+		// Update current document if needed
+		currentDocument.update((current) => (current?.id === id ? updated : current));
+
+		return updated;
+	} catch (error) {
+		// Revert optimistic update on error
+		if (currentDoc) {
+			documents.update((docs) => docs.map((d) => (d.id === id ? currentDoc : d)));
+			// Update cache
+			documentsCache = get(documents);
+			lastLoadTime = Date.now();
+			// Revert current document if needed
+			currentDocument.update((current) => (current?.id === id ? currentDoc : current));
+		}
+		console.error('Failed to update document:', error);
 		throw error;
 	}
 }

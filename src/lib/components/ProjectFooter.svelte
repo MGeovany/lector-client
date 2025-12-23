@@ -2,7 +2,7 @@
 	// Project footer component
 </script>
 
-<footer class="border-t border-slate-200 bg-white/50 py-6">
+<footer class="border-t border-slate-200 bg-white/50 pt-6">
 	<div class="mx-auto max-w-6xl px-6">
 		<div class="flex flex-col items-center gap-2 text-center">
 			<p class="text-xs text-slate-500">Lector · Simple reader for simple readers</p>
@@ -29,4 +29,3 @@
 		</div>
 	</div>
 </footer>
-

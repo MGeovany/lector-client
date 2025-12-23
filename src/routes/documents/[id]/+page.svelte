@@ -3,14 +3,18 @@
 	import ProtectedRoute from '$lib/components/ProtectedRoute.svelte';
 	import type { Document, TextBlock } from '$lib/api/types';
 	import { goto } from '$app/navigation';
-	import { ArrowLeft, ChevronLeft, ChevronRight, Moon, Sun, Type, Loader } from '@lucide/svelte';
 	import TextPreference from '$lib/components/TextPreference.svelte';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import ArticleHeader from '$lib/components/reader/ArticleHeader.svelte';
+	import ArticleContent from '$lib/components/reader/ArticleContent.svelte';
+	import BottomPager from '$lib/components/reader/BottomPager.svelte';
+	import BackButton from '$lib/components/reader/BackButton.svelte';
+	import GameHint from '$lib/components/reader/GameHint.svelte';
+	import TypographyWidget from '$lib/components/reader/TypographyWidget.svelte';
 	import {
-		loadReadingPosition,
 		updateReadingPosition,
 		updatePreferences,
 		loadPreferences,
-		preferencesLoading,
 		userPreferences,
 		readingPositions
 	} from '$lib/stores/preferences';
@@ -76,7 +80,15 @@
 		const prefs = get(userPreferences);
 		if (prefs && prefs.user_id) {
 			// Preferences are already loaded in store
-			const themeValue = prefs.theme === 'day' || prefs.theme === 'night' ? prefs.theme : 'night';
+			// Map backend theme (light/dark) to frontend theme (day/night)
+			let themeValue: 'day' | 'night' = 'night'; // default
+			const themeStr = String(prefs.theme);
+			if (themeStr === 'light' || themeStr === 'day') {
+				themeValue = 'day';
+			} else if (themeStr === 'dark' || themeStr === 'night') {
+				themeValue = 'night';
+			}
+
 			const fontKey = fontOptions.find(
 				(f) =>
 					f.key === prefs.font_family?.toLowerCase() ||
@@ -85,8 +97,7 @@
 			return {
 				theme: themeValue as ThemeKey,
 				fontSize: prefs.font_size || 17,
-				fontFamily: (fontKey || fontOptions[0].key) as FontKey,
-				lineHeight: prefs.line_height || 1.6
+				fontFamily: (fontKey || fontOptions[0].key) as FontKey
 			};
 		}
 		// Return defaults
@@ -104,10 +115,17 @@
 	let fontFamily: FontKey = initialPrefs.fontFamily;
 	let lineHeight = initialPrefs.lineHeight;
 	let showControls = false;
+	let preferencesApplied = false;
 	let savingPosition = false;
 	let loadingPosition = false;
 	let preferencesLoaded = false;
 	let positionLoaded = false;
+	let showBack = false;
+	let lastScrollTop = 0;
+	let hudTimer: ReturnType<typeof setTimeout> | null = null;
+	$: hudBg = theme === 'night' ? 'rgba(30, 30, 30, 0.82)' : 'rgba(255, 255, 255, 0.82)';
+	$: hudBorder = theme === 'night' ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.10)';
+	$: hudText = currentTheme.text;
 
 	let documentData: Document | null = data?.document ?? null;
 
@@ -141,21 +159,23 @@
 
 	$: currentPage = clamp(currentPage, 1, totalPages);
 	$: displayedBlocks = pages[currentPage - 1] ?? [];
-	$: progressPercent = Math.min(100, Math.max(0, (currentPage / totalPages) * 100));
 	$: currentTheme = themes[theme];
 	$: themeStyles = `background: ${currentTheme.bg}; color: ${currentTheme.text}; --bg-container: ${currentTheme.bgContainer}; --border-color: ${currentTheme.border}; --muted-color: ${currentTheme.muted};`;
 
-	// Normalize document to handle different payload formats from backend
+	// Normalize document - backend returns snake_case
 	function normalizeDocument(doc: any): Document {
-		// Normalize metadata (handle both camelCase and PascalCase)
+		// Normalize metadata (backend returns snake_case)
 		const metadata = doc.metadata || {};
 		const normalizedMetadata = {
-			title: metadata.title || metadata.Title || doc.title || '',
-			author: metadata.author || metadata.Author || '',
-			page_count: metadata.page_count || metadata.PageCount || 0,
-			file_size: metadata.file_size || metadata.FileSize || doc.file_size || 0,
-			format: metadata.format || metadata.Format || 'pdf',
-			has_password: metadata.has_password || metadata.HasPassword || false
+			original_title: metadata.original_title || doc.title || '',
+			original_author: metadata.original_author || doc.author || '',
+			language: metadata.language,
+			page_count: metadata.page_count || 0,
+			word_count: metadata.word_count || 0,
+			file_size: metadata.file_size || 0,
+			format: metadata.format || 'pdf',
+			source: metadata.source,
+			has_password: metadata.has_password || false
 		};
 
 		// Normalize content (ensure it's an array of TextBlock)
@@ -163,9 +183,15 @@
 		if (Array.isArray(doc.content)) {
 			normalizedContent = doc.content.map((block: any) => ({
 				content: block.content || '',
-				type: (block.type || 'paragraph') as 'paragraph' | 'heading' | 'list' | 'table',
+				type: (block.type || 'paragraph') as
+					| 'paragraph'
+					| 'heading'
+					| 'list'
+					| 'table'
+					| 'quote'
+					| 'code',
 				level: block.level || 0,
-				page_num: block.page_num || block.pageNum || 1,
+				page_number: block.page_number || 1,
 				position: block.position || 0
 			}));
 		}
@@ -173,28 +199,29 @@
 		return {
 			id: doc.id,
 			user_id: doc.user_id,
-			original_name: doc.original_name || doc.originalName || '',
-			title: doc.title || normalizedMetadata.title || '',
+			title: doc.title || normalizedMetadata.original_title || '',
+			author: doc.author || normalizedMetadata.original_author || undefined,
+			description: doc.description || undefined,
 			content: normalizedContent,
 			metadata: normalizedMetadata,
-			file_size: doc.file_size || doc.fileSize || 0,
-			created_at: doc.created_at || doc.createdAt || '',
-			updated_at: doc.updated_at || doc.updatedAt || ''
+			tag: doc.tag || undefined,
+			created_at: doc.created_at || '',
+			updated_at: doc.updated_at || ''
 		};
 	}
 
 	function getPageCount(doc: Document | null): number {
 		if (!doc) return 1;
 
-		// Try metadata first (PageCount or page_count)
-		const metadataPageCount = doc.metadata?.page_count || (doc.metadata as any)?.PageCount;
+		// Try metadata first (backend returns page_count in snake_case)
+		const metadataPageCount = doc.metadata?.page_count;
 		if (metadataPageCount && metadataPageCount > 0) {
 			return metadataPageCount;
 		}
 
 		// Fallback to counting unique pages in content
 		if (doc.content && doc.content.length > 0) {
-			const uniquePages = new Set(doc.content.map((block) => block.page_num));
+			const uniquePages = new Set(doc.content.map((block) => block.page_number));
 			return Math.max(uniquePages.size, 1);
 		}
 
@@ -205,7 +232,7 @@
 		const grouped = new Map<number, TextBlock[]>();
 
 		for (const block of content) {
-			const pageNum = block.page_num || 1;
+			const pageNum = block.page_number || 1;
 			const pageBlocks = grouped.get(pageNum) ?? [];
 			pageBlocks.push(block);
 			grouped.set(pageNum, pageBlocks);
@@ -250,17 +277,16 @@
 		goto('/');
 	}
 
-	function toggleControls() {
-		showControls = !showControls;
-	}
-
 	async function savePosition() {
 		if (!documentData?.id || savingPosition) return;
 		savingPosition = true;
 		try {
+			// Calculate progress based on current page and total pages
+			const progress = totalPages > 0 ? Math.min(currentPage / totalPages, 1) : 0;
+
 			await updateReadingPosition(documentData.id, {
 				page_number: currentPage,
-				position: currentPage - 1
+				progress: progress
 			});
 		} catch (error) {
 			console.error('Failed to save reading position:', error);
@@ -282,21 +308,6 @@
 			console.log('Applied position from store:', currentPage);
 			return;
 		}
-
-		positionLoaded = true; // Set early to prevent multiple calls
-		loadingPosition = true;
-		try {
-			const position = await loadReadingPosition(documentData.id);
-			if (position?.page_number) {
-				currentPage = Math.min(position.page_number, totalPages);
-				console.log('Applied position from backend:', currentPage);
-			}
-		} catch (error) {
-			// Position might not exist yet, that's okay
-			console.log('No saved position found');
-		} finally {
-			loadingPosition = false;
-		}
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
@@ -311,10 +322,29 @@
 		} else if (event.key === 'ArrowLeft') {
 			event.preventDefault();
 			previousPage();
+		} else if (event.key === 'ArrowUp' && contentContainer) {
+			event.preventDefault();
+			contentContainer.scrollBy({ top: -100, behavior: 'smooth' });
+		} else if (event.key === 'ArrowDown' && contentContainer) {
+			event.preventDefault();
+			contentContainer.scrollBy({ top: 100, behavior: 'smooth' });
+		}
+	}
+
+	function handleScrollUp() {
+		if (contentContainer) {
+			contentContainer.scrollBy({ top: -100, behavior: 'smooth' });
+		}
+	}
+
+	function handleScrollDown() {
+		if (contentContainer) {
+			contentContainer.scrollBy({ top: 100, behavior: 'smooth' });
 		}
 	}
 
 	function handleTouchStart(event: TouchEvent) {
+		revealHud();
 		touchStartX = event.touches[0].clientX;
 	}
 
@@ -357,19 +387,24 @@
 
 		// Check if preferences are already in store (from previous load)
 		const storePrefs = get(userPreferences);
-		if (storePrefs && storePrefs.user_id) {
+		if (storePrefs && storePrefs.user_id && !preferencesApplied) {
 			// Apply preferences from store immediately to avoid flash
+			console.log('Applying preferences from store:', storePrefs);
 			applyPreferences(storePrefs);
+			preferencesApplied = true;
 			preferencesLoaded = true;
 			return;
 		}
 
 		preferencesLoaded = true; // Set early to prevent multiple calls
 		try {
-			console.log('Loading saved preferences...');
+			console.log('Loading saved preferences from API...');
 			const prefs = await loadPreferences();
-			console.log('Loaded preferences:', prefs);
-			applyPreferences(prefs);
+			console.log('Loaded preferences from API:', prefs);
+			if (!preferencesApplied) {
+				applyPreferences(prefs);
+				preferencesApplied = true;
+			}
 		} catch (error) {
 			console.error('Failed to load preferences:', error);
 			// If preferences don't exist yet, that's okay - use defaults
@@ -379,10 +414,17 @@
 	function applyPreferences(prefs: any) {
 		// Map backend preferences to local state
 		// Use explicit assignments to trigger reactivity
-		if (prefs.font_size && prefs.font_size > 0) {
-			fontSize = prefs.font_size;
-			console.log('Set font size to:', fontSize);
+		console.log('Applying preferences:', prefs);
+
+		// Always apply font_size if present
+		if (prefs.font_size !== undefined && prefs.font_size !== null && prefs.font_size > 0) {
+			fontSize = Number(prefs.font_size);
+			console.log('✓ Set font size to:', fontSize);
+		} else {
+			console.log('⚠ Font size not found or invalid:', prefs.font_size);
 		}
+
+		// Always apply font_family if present
 		if (prefs.font_family) {
 			// Map font family string to FontKey
 			// Backend stores label (e.g., "Roboto", "Montserrat"), we need to find matching key
@@ -393,23 +435,35 @@
 			)?.key;
 			if (fontKey) {
 				fontFamily = fontKey;
-				console.log('Set font family to:', fontFamily, 'from backend:', prefs.font_family);
+				console.log('✓ Set font family to:', fontFamily, 'from backend:', prefs.font_family);
 			} else {
 				console.warn(
-					'Could not find font key for:',
+					'⚠ Could not find font key for:',
 					prefs.font_family,
 					'available keys:',
 					fontOptions.map((f) => f.key)
 				);
 			}
+		} else {
+			console.log('⚠ Font family not found:', prefs.font_family);
 		}
-		if (prefs.theme && (prefs.theme === 'day' || prefs.theme === 'night')) {
-			theme = prefs.theme;
-			console.log('Set theme to:', theme);
+
+		// Always apply theme if present
+		if (prefs.theme) {
+			const themeStr = String(prefs.theme);
+			if (themeStr === 'light' || themeStr === 'day') {
+				theme = 'day';
+			} else if (themeStr === 'dark' || themeStr === 'night') {
+				theme = 'night';
+			}
+			console.log('✓ Set theme to:', theme, 'from backend:', prefs.theme);
+		} else {
+			console.log('⚠ Theme not found:', prefs.theme);
 		}
+
 		if (prefs.line_height && prefs.line_height > 0) {
 			lineHeight = prefs.line_height;
-			console.log('Set line height to:', lineHeight);
+			console.log('✓ Set line height to:', lineHeight);
 		}
 	}
 
@@ -417,11 +471,12 @@
 		if (!$currentUser?.id) return;
 		try {
 			const selectedFont = fontOptions.find((f) => f.key === fontFamily);
+			// Map frontend theme (day/night) to backend theme (light/dark)
+			const backendTheme = theme === 'day' ? 'light' : 'dark';
 			await updatePreferences({
 				font_size: fontSize,
 				font_family: selectedFont?.label || 'Roboto',
-				theme: theme,
-				line_height: lineHeight
+				theme: backendTheme
 			});
 		} catch (error) {
 			console.error('Failed to save preferences:', error);
@@ -429,12 +484,13 @@
 	}
 
 	onMount(() => {
-		// Load saved preferences and position (don't await - let them run in background)
+		// Load saved preferences first (don't await - let it run in background)
 		loadSavedPreferences();
 		loadSavedPosition();
 
 		// Add keyboard listeners
 		window.addEventListener('keydown', handleKeyDown);
+		window.addEventListener('mousemove', revealHud);
 
 		// Add click outside listener
 		document.addEventListener('click', handleClickOutside);
@@ -442,13 +498,34 @@
 		// Return cleanup function
 		return () => {
 			window.removeEventListener('keydown', handleKeyDown);
+			window.removeEventListener('mousemove', revealHud);
 			document.removeEventListener('click', handleClickOutside);
 		};
 	});
 
 	onDestroy(() => {
 		savePosition();
+		if (hudTimer) clearTimeout(hudTimer);
 	});
+
+	function handleReaderScroll() {
+		if (!contentContainer) return;
+		const st = contentContainer.scrollTop;
+		const scrollingUp = st < lastScrollTop;
+		lastScrollTop = st;
+
+		// show only after user is "in the article"
+		if (st > 120 && scrollingUp) showBack = true;
+		if (!scrollingUp && st > 160) showBack = false;
+		if (st <= 80) showBack = false;
+	}
+
+	function revealHud() {
+		if (hudTimer) {
+			clearTimeout(hudTimer);
+			hudTimer = null;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -474,179 +551,100 @@
 
 <ProtectedRoute>
 	<div class="fixed inset-0 h-screen overflow-hidden" style={themeStyles}>
-		<div class="mx-auto flex h-full max-w-6xl flex-1 flex-col px-4 py-6">
-			<div
-				class="flex h-full flex-col overflow-hidden rounded-3xl border shadow-xl"
-				style={`background-color: var(--bg-container); border-color: var(--border-color);`}
-			>
-				<header
-					class="flex items-center justify-between border-b px-4 py-3"
-					style={`border-color: var(--border-color);`}
-				>
-					<div class="flex items-center gap-3">
-						<button
-							class="flex h-11 min-h-[44px] w-11 min-w-[44px] flex-shrink-0 items-center justify-center rounded-2xl border text-sm font-semibold transition hover:opacity-80"
-							style={`background-color: var(--bg-container); border-color: var(--border-color); color: var(--muted-color);`}
-							on:click={goBack}
-							aria-label="Back to library"
-						>
-							<ArrowLeft class="h-5 w-5" />
-						</button>
-						<div class="text-left">
-							<h1
-								class="text-lg leading-tight font-semibold"
-								style={`color: ${currentTheme.text};`}
-							>
-								{documentData?.title ?? 'Untitled document'}
-							</h1>
-							<p class="text-sm" style={`color: var(--muted-color);`}>
-								{documentData?.metadata?.author ?? documentData?.original_name ?? 'Unknown author'}
-							</p>
-						</div>
-					</div>
-					<button
-						class="flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-semibold transition hover:opacity-80"
-						style={`background-color: var(--bg-container); border-color: var(--border-color); color: ${currentTheme.text};`}
-						type="button"
-						on:click={toggleControls}
-						aria-expanded={showControls}
-					>
-						<Type class="h-5 w-5" />
-						<span>Aa</span>
-					</button>
-				</header>
+		<!-- Back button (appears when scrolling up) -->
+		<BackButton show={showBack} onBack={goBack} {currentTheme} />
 
-				<main class="flex min-h-0 flex-1 flex-col">
-					<section class="flex min-h-0 flex-1 flex-col">
-						<div
-							bind:this={contentContainer}
-							class="flex flex-1 flex-col overflow-y-auto px-6 py-6"
-							style={`font-family: ${selectedFont.stack}; font-size: ${fontSize}px; line-height: ${lineHeight}; background-color: ${currentTheme.bg}; color: ${currentTheme.text};`}
-							aria-live="polite"
-							on:touchstart={handleTouchStart}
-							on:touchend={handleTouchEnd}
-						>
-							{#if ($preferencesLoading || !preferencesLoaded) && !documentData}
-								<div
-									class="flex flex-1 items-center justify-center text-center text-sm"
-									style={`color: var(--muted-color);`}
-								>
-									<div class="flex flex-col items-center gap-2">
-										<Loader class="h-5 w-5 animate-spin" style={`color: var(--muted-color);`} />
-										<span>Loading preferences…</span>
-									</div>
-								</div>
-							{:else if documentData && displayedBlocks.length}
-								<div class="flex flex-col">
-									{#each displayedBlocks as block (block.page_num + '-' + block.position)}
-										{#if block.type === 'heading'}
-											<h2
-												class="mb-4 leading-tight font-semibold"
-												style={`font-size: ${Math.min(fontSize + 10, 36)}px; color: ${currentTheme.text};`}
-											>
-												{block.content}
-											</h2>
-										{:else}
-											<p class="mb-4 text-inherit">{block.content}</p>
-										{/if}
-									{/each}
-								</div>
-							{:else if documentData}
-								<div
-									class="flex flex-1 items-center justify-center text-center text-sm"
-									style={`color: var(--muted-color);`}
-								>
-									No content on this page.
-								</div>
-							{:else if loadingPosition}
-								<div
-									class="flex flex-1 items-center justify-center text-center text-sm"
-									style={`color: var(--muted-color);`}
-								>
-									<div class="flex flex-col items-center gap-2">
-										<Loader class="h-5 w-5 animate-spin" style={`color: var(--muted-color);`} />
-										<span>Loading position…</span>
-									</div>
-								</div>
-							{:else}
-								<div
-									class="flex flex-1 items-center justify-center text-center text-sm"
-									style={`color: var(--muted-color);`}
-								>
-									Loading book…
-								</div>
-							{/if}
-						</div>
-					</section>
+		<!-- Theme toggle (floating) -->
+		<div class="fixed top-4 right-4 z-40">
+			<ThemeToggle
+				value={theme}
+				{currentTheme}
+				on:change={(e) => {
+					theme = e.detail;
+					savePreferences();
+				}}
+			/>
+		</div>
 
-					{#if showControls}
-						<div bind:this={preferencesPanel}>
-							<TextPreference
-								{theme}
-								{fontSize}
-								{fontFamily}
-								{fontOptions}
-								{themes}
-								on:themeChange={(event) => {
-									theme = event.detail as ThemeKey;
-									savePreferences();
-								}}
-								on:fontSizeChange={(event) => {
-									fontSize = Number(event.detail);
-									savePreferences();
-								}}
-								on:fontFamilyChange={(event) => {
-									fontFamily = event.detail as FontKey;
-									savePreferences();
-								}}
-							/>
-						</div>
-					{/if}
+		<!-- Typography Widget -->
+		<TypographyWidget
+			{fontSize}
+			{fontFamily}
+			{fontOptions}
+			{currentTheme}
+			onFontSizeChange={(size) => {
+				fontSize = size;
+				savePreferences();
+			}}
+			onFontFamilyChange={(family) => {
+				fontFamily = family as FontKey;
+				savePreferences();
+			}}
+		/>
 
-					<footer
-						class="flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-						style={`border-color: var(--border-color);`}
-					>
-						<div class="flex flex-1 flex-col gap-2">
-							<div
-								class="h-2 w-full overflow-hidden rounded-full"
-								style={`background-color: var(--border-color);`}
-							>
-								<span
-									class="block h-full rounded-full transition-all"
-									style={`width: ${progressPercent}%; background: linear-gradient(to right, #60A5FA, #3B82F6);`}
-								></span>
-							</div>
-							<p class="text-sm" style={`color: var(--muted-color);`}>
-								<span class="font-semibold">{progressPercent.toFixed(0)}%</span> read · page {currentPage}
-								of {totalPages}
-							</p>
-						</div>
-						<div class="flex gap-2">
-							<button
-								type="button"
-								class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition hover:opacity-80 disabled:opacity-50"
-								style={`background-color: var(--bg-container); border-color: var(--border-color); color: ${currentTheme.text};`}
-								on:click={previousPage}
-								disabled={currentPage === 1}
-							>
-								<ChevronLeft class="h-4 w-4" />
-								Previous
-							</button>
-							<button
-								type="button"
-								class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition hover:opacity-80 disabled:opacity-50"
-								style={`background-color: var(--bg-container); border-color: var(--border-color); color: ${currentTheme.text};`}
-								on:click={nextPage}
-								disabled={currentPage === totalPages}
-							>
-								Next
-								<ChevronRight class="h-4 w-4" />
-							</button>
-						</div>
-					</footer>
-				</main>
+		<!-- Bottom pager (always available) -->
+		<BottomPager
+			{currentPage}
+			{totalPages}
+			onPrevious={previousPage}
+			onNext={nextPage}
+			{hudBg}
+			{hudBorder}
+			{hudText}
+		/>
+
+		<!-- Game Hint -->
+		<GameHint
+			{hudBg}
+			{hudBorder}
+			{hudText}
+			onScrollUp={handleScrollUp}
+			onScrollDown={handleScrollDown}
+		/>
+
+		<!-- Clean article reader -->
+		<div
+			bind:this={contentContainer}
+			class="h-full overflow-y-auto px-4 py-10 sm:px-6"
+			on:scroll={handleReaderScroll}
+			on:touchstart={handleTouchStart}
+			on:touchend={handleTouchEnd}
+			style={`font-family: ${selectedFont.stack}; font-size: ${fontSize}px; line-height: ${lineHeight}; background-color: ${currentTheme.bg}; color: ${currentTheme.text};`}
+		>
+			<div class="mx-auto w-full max-w-3xl">
+				<ArticleHeader document={documentData} {currentTheme} onBack={goBack} />
+
+				<ArticleContent
+					blocks={displayedBlocks}
+					loading={loadingPosition && !documentData}
+					{currentTheme}
+				/>
 			</div>
 		</div>
+
+		<!-- Keep typography panel accessible via existing handler if needed (hidden by default) -->
+		{#if showControls}
+			<div class="fixed inset-x-0 bottom-0 z-50" bind:this={preferencesPanel}>
+				<TextPreference
+					{theme}
+					{fontSize}
+					{fontFamily}
+					{fontOptions}
+					{themes}
+					on:themeChange={(event) => {
+						theme = event.detail as ThemeKey;
+						savePreferences();
+					}}
+					on:fontSizeChange={(event) => {
+						fontSize = Number(event.detail);
+						savePreferences();
+					}}
+					on:fontFamilyChange={(event) => {
+						fontFamily = event.detail as FontKey;
+						savePreferences();
+					}}
+				/>
+			</div>
+		{/if}
 	</div>
 </ProtectedRoute>
