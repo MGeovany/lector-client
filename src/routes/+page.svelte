@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { isAuthenticated, currentUser } from '$lib/stores/auth';
-	import { documents, loadDocuments, documentsLoading } from '$lib/stores/documents';
+	import { documents, loadDocuments, documentsLoading, isSearchMode, searchQuery } from '$lib/stores/documents';
 	import { readingPositions } from '$lib/stores/preferences';
 	import ProtectedRoute from '$lib/components/ProtectedRoute.svelte';
-	import { AlertTriangle, Info, Loader, Plus } from '@lucide/svelte';
+	import { AlertTriangle, Info, Loader, Plus, Search } from '@lucide/svelte';
 	import { formatBytes } from '../utils/format';
 	import ProjectFooter from '$lib/components/ProjectFooter.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
@@ -229,10 +229,22 @@
 					{#if $documentsLoading}
 						<div class="min-h-screen py-10 text-center text-sm text-slate-600">Loading books…</div>
 					{:else if displayedDocuments.length === 0}
-						<div class="py-10 text-center text-sm text-slate-600">
-							{activeTab === 'read'
-								? 'No books read yet. Start reading to see them here.'
-								: 'No books yet. Upload your first book to get started.'}
+						<div class="py-20 text-center">
+							{#if $isSearchMode}
+								<div class="flex flex-col items-center gap-3">
+									<Search class="h-12 w-12 text-slate-300" strokeWidth={1} />
+									<p class="text-sm font-light text-slate-500">
+										No results found for <span class="font-medium text-slate-700">"{$searchQuery}"</span>
+									</p>
+									<p class="text-xs text-slate-400">Try a different search term</p>
+								</div>
+							{:else}
+								<p class="text-sm text-slate-600">
+									{activeTab === 'read'
+										? 'No books read yet. Start reading to see them here.'
+										: 'No books yet. Upload your first book to get started.'}
+								</p>
+							{/if}
 						</div>
 					{:else}
 						<div class="flex flex-col">

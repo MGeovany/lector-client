@@ -4,13 +4,15 @@
 	import ProfilePicture from '$lib/components/ProfilePicture.svelte';
 	import { handleFileUpload } from '$lib/utils/upload';
 	import { sidebarOpen } from '$lib/stores/ui';
-	import { searchDocuments, loadDocuments } from '$lib/stores/documents';
+	import { searchDocuments, loadDocuments, searchQuery } from '$lib/stores/documents';
+	import { showToast } from '$lib/stores/toast';
 	import { onMount } from 'svelte';
 
 	let uploading = false;
-	let searchQuery = '';
+	let localSearchQuery = '';
 	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let isSearching = false;
+	let isSyncingFromStore = false;
 
 	function toggleSidebar() {
 		sidebarOpen.update((open) => !open);
@@ -41,7 +43,7 @@
 		}
 
 		searchTimeout = setTimeout(async () => {
-			if (!searchQuery.trim()) {
+			if (!localSearchQuery.trim()) {
 				// If search is empty, reload all documents
 				if ($currentUser?.id) {
 					await loadDocuments($currentUser.id);
@@ -51,17 +53,32 @@
 
 			isSearching = true;
 			try {
-				await searchDocuments(searchQuery.trim());
+				await searchDocuments(localSearchQuery.trim());
 			} catch (error) {
 				console.error('Search failed:', error);
+				showToast('Failed to search documents. Please try again.', 'error');
+				// Reload all documents on error
+				if ($currentUser?.id) {
+					await loadDocuments($currentUser.id);
+				}
 			} finally {
 				isSearching = false;
 			}
 		}, 300); // Debounce 300ms
 	}
 
-	$: if (searchQuery !== undefined) {
+	$: if (localSearchQuery !== undefined && !isSyncingFromStore) {
 		handleSearch();
+	}
+
+	// Sync local search query with store (but don't trigger search)
+	$: if ($searchQuery !== localSearchQuery && !isSyncingFromStore) {
+		isSyncingFromStore = true;
+		localSearchQuery = $searchQuery;
+		// Reset flag after sync to allow future user input to trigger search
+		setTimeout(() => {
+			isSyncingFromStore = false;
+		}, 0);
 	}
 
 	onMount(() => {
@@ -111,17 +128,17 @@
 				{/if}
 				<input
 					type="text"
-					bind:value={searchQuery}
+					bind:value={localSearchQuery}
 					class="min-w-0 flex-1 bg-transparent text-slate-900 placeholder:text-xs placeholder:font-extralight placeholder:text-slate-500 focus:outline-none"
 					placeholder="Search documents..."
 					aria-label="Search documents"
 				/>
-				{#if searchQuery}
+				{#if localSearchQuery}
 					<button
 						type="button"
 						class="shrink-0 rounded-full p-0.5 hover:bg-black/5"
 						on:click={() => {
-							searchQuery = '';
+							localSearchQuery = '';
 							if ($currentUser?.id) {
 								loadDocuments($currentUser.id);
 							}

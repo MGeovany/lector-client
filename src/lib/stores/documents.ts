@@ -35,6 +35,8 @@ function normalizeDocuments(docs: Document[]): Document[] {
 export const documents = writable<Document[]>([]);
 export const currentDocument = writable<Document | null>(null);
 export const documentsLoading = writable<boolean>(false);
+export const isSearchMode = writable<boolean>(false);
+export const searchQuery = writable<string>('');
 let documentsCache: Document[] | null = null;
 let lastLoadTime = 0;
 let lastUserID: string | null = null;
@@ -63,6 +65,8 @@ export async function loadDocuments(userID: string, forceRefresh = false) {
 	}
 
 	documentsLoading.set(true);
+	isSearchMode.set(false);
+	searchQuery.set('');
 	try {
 		const docs = await DocumentAPI.getDocumentsByUserID(userID);
 		const normalized = normalizeDocuments(docs);
@@ -124,16 +128,16 @@ export async function updateDocumentDetails(
 	// Get current document state
 	const currentDocs = get(documents);
 	const currentDoc = currentDocs.find((d) => d.id === id);
-	
+
 	// Create optimistic update
 	const optimisticDoc: Document | null = currentDoc
 		? {
-				...currentDoc,
-				...(updates.title !== undefined && { title: updates.title }),
-				...(updates.author !== undefined && { author: updates.author }),
-				...(updates.tag !== undefined && { tag: updates.tag }),
-				updated_at: new Date().toISOString()
-			}
+			...currentDoc,
+			...(updates.title !== undefined && { title: updates.title }),
+			...(updates.author !== undefined && { author: updates.author }),
+			...(updates.tag !== undefined && { tag: updates.tag }),
+			updated_at: new Date().toISOString()
+		}
 		: null;
 
 	// Apply optimistic update immediately
@@ -149,15 +153,15 @@ export async function updateDocumentDetails(
 	try {
 		// Sync with backend
 		const updated = normalizeDocument(await DocumentAPI.updateDocument(id, updates));
-		
+
 		// Update with server response (in case server made additional changes)
 		documents.update((docs) => docs.map((d) => (d.id === id ? updated : d)));
-		
+
 		// Update cache
 		const finalDocs = get(documents);
 		documentsCache = finalDocs;
 		lastLoadTime = Date.now();
-		
+
 		// Update current document if needed
 		currentDocument.update((current) => (current?.id === id ? updated : current));
 
@@ -193,6 +197,8 @@ export async function loadDocument(id: string) {
 // Search documents
 export async function searchDocuments(query: string) {
 	documentsLoading.set(true);
+	isSearchMode.set(true);
+	searchQuery.set(query);
 	try {
 		const docs = await DocumentAPI.searchDocuments(query);
 		documents.set(docs);
