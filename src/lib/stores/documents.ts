@@ -128,16 +128,16 @@ export async function updateDocumentDetails(
 	// Get current document state
 	const currentDocs = get(documents);
 	const currentDoc = currentDocs.find((d) => d.id === id);
-	
+
 	// Create optimistic update
 	const optimisticDoc: Document | null = currentDoc
 		? {
-				...currentDoc,
-				...(updates.title !== undefined && { title: updates.title }),
-				...(updates.author !== undefined && { author: updates.author }),
-				...(updates.tag !== undefined && { tag: updates.tag }),
-				updated_at: new Date().toISOString()
-			}
+			...currentDoc,
+			...(updates.title !== undefined && { title: updates.title }),
+			...(updates.author !== undefined && { author: updates.author }),
+			...(updates.tag !== undefined && { tag: updates.tag }),
+			updated_at: new Date().toISOString()
+		}
 		: null;
 
 	// Apply optimistic update immediately
@@ -153,15 +153,15 @@ export async function updateDocumentDetails(
 	try {
 		// Sync with backend
 		const updated = normalizeDocument(await DocumentAPI.updateDocument(id, updates));
-		
+
 		// Update with server response (in case server made additional changes)
 		documents.update((docs) => docs.map((d) => (d.id === id ? updated : d)));
-		
+
 		// Update cache
 		const finalDocs = get(documents);
 		documentsCache = finalDocs;
 		lastLoadTime = Date.now();
-		
+
 		// Update current document if needed
 		currentDocument.update((current) => (current?.id === id ? updated : current));
 
