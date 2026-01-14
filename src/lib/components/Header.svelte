@@ -12,6 +12,7 @@
 	let localSearchQuery = '';
 	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let isSearching = false;
+	let isSyncingFromStore = false;
 
 	function toggleSidebar() {
 		sidebarOpen.update((open) => !open);
@@ -66,13 +67,18 @@
 		}, 300); // Debounce 300ms
 	}
 
-	$: if (localSearchQuery !== undefined) {
+	$: if (localSearchQuery !== undefined && !isSyncingFromStore) {
 		handleSearch();
 	}
 
-	// Sync local search query with store
-	$: if ($searchQuery !== localSearchQuery) {
+	// Sync local search query with store (but don't trigger search)
+	$: if ($searchQuery !== localSearchQuery && !isSyncingFromStore) {
+		isSyncingFromStore = true;
 		localSearchQuery = $searchQuery;
+		// Reset flag after sync to allow future user input to trigger search
+		setTimeout(() => {
+			isSyncingFromStore = false;
+		}, 0);
 	}
 
 	onMount(() => {
