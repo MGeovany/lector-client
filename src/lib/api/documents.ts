@@ -12,6 +12,8 @@ function normalizeDocumentResponse(doc): Document {
 		metadata: doc.metadata || {},
 		content: doc.content || [],
 		tag: doc.tag || undefined,
+		is_favorite: doc.is_favorite ?? false,
+		reading_position: doc.reading_position || undefined,
 		created_at: doc.created_at || '',
 		updated_at: doc.updated_at || ''
 	};

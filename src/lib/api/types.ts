@@ -97,6 +97,8 @@ export interface Document {
 	content: TextBlock[];
 
 	tag?: string;
+	is_favorite?: boolean;
+	reading_position?: ReadingPosition;
 
 	created_at: string;
 	updated_at: string;

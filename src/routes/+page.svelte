@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { isAuthenticated, currentUser } from '$lib/stores/auth';
 	import { documents, loadDocuments, documentsLoading } from '$lib/stores/documents';
-	import { readingPositions, loadReadingPosition } from '$lib/stores/preferences';
+	import { readingPositions } from '$lib/stores/preferences';
 	import ProtectedRoute from '$lib/components/ProtectedRoute.svelte';
 	import { AlertTriangle, Info, Loader, Plus } from '@lucide/svelte';
 	import { formatBytes } from '../utils/format';
@@ -24,16 +24,15 @@
 		// In case the user is already authenticated when this page mounts.
 		if ($isAuthenticated && !hasLoadedDocuments) {
 			hasLoadedDocuments = true;
-			loadDocuments($currentUser?.id || '').then(async () => {
-				// Load reading positions for all documents after documents are loaded
-				const docs = $documents;
-				for (const doc of docs) {
-					try {
-						await loadReadingPosition(doc.id);
-					} catch (error) {
-						// Ignore errors for documents without reading positions
+			loadDocuments($currentUser?.id || '').then(() => {
+				// reading_position now comes inline from GET /documents/user/{id}.
+				readingPositions.update((positions) => {
+					const next = new Map(positions);
+					for (const doc of $documents) {
+						if (doc.reading_position) next.set(doc.id, doc.reading_position);
 					}
-				}
+					return next;
+				});
 			});
 		}
 	});
@@ -41,16 +40,14 @@
 	// React to auth becoming ready after initial mount (e.g. on reload).
 	$: if ($isAuthenticated && !hasLoadedDocuments) {
 		hasLoadedDocuments = true;
-		loadDocuments($currentUser?.id || '').then(async () => {
-			// Load reading positions for all documents after documents are loaded
-			const docs = $documents;
-			for (const doc of docs) {
-				try {
-					await loadReadingPosition(doc.id);
-				} catch (error) {
-					// Ignore errors for documents without reading positions
+		loadDocuments($currentUser?.id || '').then(() => {
+			readingPositions.update((positions) => {
+				const next = new Map(positions);
+				for (const doc of $documents) {
+					if (doc.reading_position) next.set(doc.id, doc.reading_position);
 				}
-			}
+				return next;
+			});
 		});
 	}
 	$: if ($isAuthenticated && !hasLoadedPreferences) {
