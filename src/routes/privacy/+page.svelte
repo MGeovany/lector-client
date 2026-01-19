@@ -53,6 +53,26 @@
 				documents and reading data are stored securely and are only accessible to you.
 			</p>
 
+			<h2 class="mt-10 text-2xl font-light text-slate-900">Payments</h2>
+			<p class="text-slate-800">
+				If you purchase a subscription or a one-time plan through Apple, payment information is processed by Apple.
+				We do not receive your full payment card details. We may receive non-sensitive purchase and entitlement
+				information (e.g., subscription status) to provide access to paid features.
+			</p>
+
+			<h2 class="mt-10 text-2xl font-light text-slate-900">Sharing and Service Providers</h2>
+			<p class="text-slate-800">
+				We may use service providers to operate Lector (e.g., hosting, storage, analytics, and customer support).
+				They process data on our behalf and are required to protect it.
+			</p>
+
+			<h2 class="mt-10 text-2xl font-light text-slate-900">Data Retention</h2>
+			<p class="text-slate-800">
+				We retain account and document data for as long as your account is active or as needed to provide the service.
+				You can request account deletion, and we will delete or anonymize personal data subject to legal and operational
+				requirements.
+			</p>
+
 			<h2 class="mt-10 text-2xl font-light text-slate-900">Your Rights</h2>
 			<p class="text-slate-800">
 				You have the right to:

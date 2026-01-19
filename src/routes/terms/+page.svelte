@@ -52,6 +52,49 @@
 				understand that we may remove content that exceeds these limits.
 			</p>
 
+			<h2 class="mt-10 text-2xl font-light text-slate-900">Subscriptions, Billing, and Payments</h2>
+			<p class="text-slate-800">
+				Lector may offer subscriptions (e.g., monthly or yearly) and may also offer one-time purchases.
+				Prices, availability, and features may vary by region and platform.
+			</p>
+			<ul class="list-disc space-y-2 pl-6 text-slate-800">
+				<li>
+					<strong>Auto-renewing subscriptions</strong>: If you purchase an auto-renewing subscription through Apple,
+					it will renew automatically unless canceled at least 24 hours before the end of the current period.
+				</li>
+				<li>
+					<strong>Manage / cancel</strong>: You can manage or cancel subscriptions in your Apple ID account settings.
+				</li>
+				<li>
+					<strong>Price changes</strong>: We may change subscription pricing in the future. If a price changes, Apple may
+					request your consent where required, and the updated price will apply for the next billing period after any
+					applicable notice/consent flow.
+				</li>
+				<li>
+					<strong>Refunds</strong>: Purchases made through Apple are subject to Apple’s refund policies.
+				</li>
+			</ul>
+
+			<h2 class="mt-10 text-2xl font-light text-slate-900">One-time Purchases (Founder)</h2>
+			<p class="text-slate-800">
+				If offered, a Founder plan is a one-time purchase. However, we reserve the right to modify plans and offerings
+				in the future, including introducing new subscription tiers or changing how plans are priced or packaged.
+				Any changes will be communicated through updated terms and/or product disclosures.
+			</p>
+
+			<h2 class="mt-10 text-2xl font-light text-slate-900">Apple Standard EULA</h2>
+			<p class="text-slate-800">
+				If you access Lector via Apple platforms, you also agree to Apple’s Standard End User License Agreement (EULA):
+				<a
+					href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+					class="underline-offset-4 hover:underline"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					Apple Standard EULA
+				</a>.
+			</p>
+
 			<h2 class="mt-10 text-2xl font-light text-slate-900">Service Availability</h2>
 			<p class="text-slate-800">
 				We strive to provide reliable service but do not guarantee uninterrupted access. We

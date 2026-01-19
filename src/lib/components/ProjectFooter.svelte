@@ -6,7 +6,21 @@
 	<div class="mx-auto max-w-6xl px-6">
 		<div class="flex flex-col items-center gap-2 text-center">
 			<p class="text-xs text-slate-500">Lector · Simple reader for simple readers</p>
-			<div class="flex items-center gap-3 text-xs text-slate-400">
+			<div class="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400">
+				<a
+					href="/privacy"
+					class="underline decoration-slate-300 transition-colors hover:text-slate-600 hover:decoration-slate-500"
+				>
+					Privacy
+				</a>
+				<span class="text-slate-300">·</span>
+				<a
+					href="/terms"
+					class="underline decoration-slate-300 transition-colors hover:text-slate-600 hover:decoration-slate-500"
+				>
+					Terms
+				</a>
+				<span class="text-slate-300">·</span>
 				<span>Feedback:</span>
 				<a
 					href="mailto:marlon.castro@thefndrs.com"
