@@ -88,7 +88,23 @@
 				If you have questions about this privacy policy, please contact us at{' '}
 				<a href="/contact" class="underline-offset-4 hover:underline">our contact page</a>.
 			</p>
+
+			<h2 class="mt-10 text-2xl font-light text-slate-900">Related</h2>
+			<ul class="list-disc space-y-2 pl-6 text-slate-800">
+				<li>
+					<a href="/terms" class="underline-offset-4 hover:underline">Terms of Service</a>
+				</li>
+				<li>
+					<a
+						href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+						class="underline-offset-4 hover:underline"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						Apple Standard EULA
+					</a>
+				</li>
+			</ul>
 		</div>
 	</main>
 </div>
-

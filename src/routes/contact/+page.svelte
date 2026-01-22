@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 </script>
 
-<div class="min-h-screen bg-cream">
+<div class="bg-cream min-h-screen">
 	<!-- Navigation -->
 	<nav class="border-b border-black/15">
 		<div class="mx-auto max-w-4xl px-6 py-4">
@@ -22,7 +22,7 @@
 	<main class="mx-auto max-w-4xl px-6 py-12">
 		<h1 class="mb-8 text-4xl font-light tracking-tight text-slate-950 sm:text-5xl">Contact Us</h1>
 
-		<div class="prose prose-slate max-w-none">
+		<div class="prose max-w-none prose-slate">
 			<p class="text-lg leading-relaxed text-slate-800">
 				We'd love to hear from you. Whether you have a question, feedback, or need support, we're
 				here to help.
@@ -30,7 +30,7 @@
 
 			<div class="mt-10 rounded-2xl border border-black/10 bg-white/50 p-8">
 				<div class="flex items-start gap-4">
-					<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100">
+					<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
 						<Mail class="h-6 w-6 text-slate-700" strokeWidth={1.5} />
 					</div>
 					<div>
@@ -44,9 +44,7 @@
 								marlon.castro@thefndrs.com
 							</a>
 						</p>
-						<p class="mt-4 text-sm text-slate-600">
-							We typically respond within 24-48 hours.
-						</p>
+						<p class="mt-4 text-sm text-slate-600">We typically respond within 24-48 hours.</p>
 					</div>
 				</div>
 			</div>
@@ -64,4 +62,3 @@
 		</div>
 	</main>
 </div>
-
