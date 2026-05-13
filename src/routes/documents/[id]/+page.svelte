@@ -175,7 +175,8 @@
 			file_size: metadata.file_size || 0,
 			format: metadata.format || 'pdf',
 			source: metadata.source,
-			has_password: metadata.has_password || false
+			has_password: metadata.has_password || false,
+			processed_pages: metadata.processed_pages || 0
 		};
 
 		// Normalize content (ensure it's an array of TextBlock)
@@ -503,8 +504,11 @@
 		};
 	});
 
+	$: processingProgress = documentData?.metadata?.processed_pages != null && documentData?.metadata?.page_count
+		? Math.min(Math.round((documentData.metadata.processed_pages / documentData.metadata.page_count) * 100), 100)
+		: 0;
+
 	$: if (documentData?.processing_status === 'processing' && browser) {
-		// Poll for processing completion
 		if (!processingPollTimer && documentData?.id) {
 			const docId = documentData.id;
 			processingPollTimer = setInterval(async () => {
@@ -513,17 +517,17 @@
 					const updated = await DocumentAPI.getDocument(docId);
 					if (updated.processing_status !== 'processing') {
 						documentData = normalizeDocument(updated);
-						if (processingPollTimer) {
-							clearInterval(processingPollTimer);
-							processingPollTimer = null;
-						}
+						clearInterval(processingPollTimer!);
+						processingPollTimer = null;
+					} else {
+						documentData = normalizeDocument(updated);
 					}
 				} catch (e) {
 					console.error('Polling failed:', e);
 				}
 			}, 2000);
 		}
-	} else if (documentData?.processing_status === 'ready' && processingPollTimer) {
+	} else if (processingPollTimer && (documentData?.processing_status === 'ready' || documentData?.processing_status === 'failed')) {
 		clearInterval(processingPollTimer);
 		processingPollTimer = null;
 	}
@@ -644,6 +648,7 @@
 					blocks={displayedBlocks}
 					loading={loadingPosition && !documentData}
 					processing={documentData?.processing_status === 'processing'}
+					processingProgress={processingProgress}
 					{currentTheme}
 				/>
 			</div>
