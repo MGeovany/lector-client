@@ -15,6 +15,7 @@ function normalizeDocumentResponse(doc): Document {
 		is_favorite: doc.is_favorite ?? false,
 		reading_position: doc.reading_position || undefined,
 		processing_status: doc.processing_status || undefined,
+		optimized_content: doc.optimized_content || undefined,
 		created_at: doc.created_at || '',
 		updated_at: doc.updated_at || ''
 	};

@@ -179,9 +179,9 @@
 			processed_pages: metadata.processed_pages || 0
 		};
 
-		// Normalize content (ensure it's an array of TextBlock)
+		// Normalize content — prefer rich TextBlocks, fall back to optimized_content pages
 		let normalizedContent: TextBlock[] = [];
-		if (Array.isArray(doc.content)) {
+		if (Array.isArray(doc.content) && doc.content.length > 0) {
 			normalizedContent = doc.content.map((block: any) => ({
 				content: block.content || '',
 				type: (block.type || 'paragraph') as
@@ -194,6 +194,15 @@
 				level: block.level || 0,
 				page_number: block.page_number || 1,
 				position: block.position || 0
+			}));
+		} else if (Array.isArray(doc.optimized_content) && doc.optimized_content.length > 0) {
+			// Fall back to optimized_content pages (available during processing, like iOS does)
+			normalizedContent = doc.optimized_content.map((pageText: string, idx: number) => ({
+				content: pageText || '',
+				type: 'paragraph' as const,
+				level: 0,
+				page_number: idx + 1,
+				position: 0
 			}));
 		}
 
