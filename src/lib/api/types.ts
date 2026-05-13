@@ -100,6 +100,8 @@ export interface Document {
 	is_favorite?: boolean;
 	reading_position?: ReadingPosition;
 
+	processing_status?: 'uploaded' | 'processing' | 'ready' | 'failed';
+
 	created_at: string;
 	updated_at: string;
 }

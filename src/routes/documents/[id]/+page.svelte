@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import ProtectedRoute from '$lib/components/ProtectedRoute.svelte';
 	import type { Document, TextBlock } from '$lib/api/types';
 	import { goto } from '$app/navigation';
@@ -78,10 +79,8 @@
 	// Initialize from store if available, otherwise use defaults
 	function initializePreferencesFromStore() {
 		const prefs = get(userPreferences);
-		if (prefs && prefs.user_id) {
-			// Preferences are already loaded in store
-			// Map backend theme (light/dark) to frontend theme (day/night)
-			let themeValue: 'day' | 'night' = 'night'; // default
+		if (prefs?.theme) {
+			let themeValue: 'day' | 'night' = 'night';
 			const themeStr = String(prefs.theme);
 			if (themeStr === 'light' || themeStr === 'day') {
 				themeValue = 'day';
@@ -97,10 +96,10 @@
 			return {
 				theme: themeValue as ThemeKey,
 				fontSize: prefs.font_size || 17,
-				fontFamily: (fontKey || fontOptions[0].key) as FontKey
+				fontFamily: (fontKey || fontOptions[0].key) as FontKey,
+				lineHeight: prefs.line_height || 1.6
 			};
 		}
-		// Return defaults
 		return {
 			theme: 'night' as ThemeKey,
 			fontSize: 17,
@@ -205,6 +204,8 @@
 			content: normalizedContent,
 			metadata: normalizedMetadata,
 			tag: doc.tag || undefined,
+			is_favorite: doc.is_favorite ?? false,
+			processing_status: doc.processing_status || undefined,
 			created_at: doc.created_at || '',
 			updated_at: doc.updated_at || ''
 		};
@@ -385,16 +386,26 @@
 	async function loadSavedPreferences() {
 		if (preferencesLoaded) return;
 
-		// Check if preferences are already in store (from previous load)
+		// Check if preferences are already in store.
 		const storePrefs = get(userPreferences);
-		if (storePrefs && storePrefs.user_id && !preferencesApplied) {
-			// Apply preferences from store immediately to avoid flash
-			console.log('Applying preferences from store:', storePrefs);
+		if (storePrefs?.theme && !preferencesApplied) {
 			applyPreferences(storePrefs);
 			preferencesApplied = true;
 			preferencesLoaded = true;
 			return;
 		}
+
+		preferencesLoaded = true;
+		try {
+			const prefs = await loadPreferences();
+			if (!preferencesApplied) {
+				applyPreferences(prefs);
+				preferencesApplied = true;
+			}
+		} catch (error) {
+			console.error('Failed to load preferences:', error);
+		}
+	}
 
 		preferencesLoaded = true; // Set early to prevent multiple calls
 		try {
@@ -483,9 +494,11 @@
 		}
 	}
 
-	onMount(() => {
-		// Load saved preferences first (don't await - let it run in background)
-		loadSavedPreferences();
+	let processingPollTimer: ReturnType<typeof setInterval> | null = null;
+
+	onMount(async () => {
+		// Load saved preferences (await so theme applies immediately).
+		await loadSavedPreferences();
 		loadSavedPosition();
 
 		// Add keyboard listeners
@@ -500,12 +513,39 @@
 			window.removeEventListener('keydown', handleKeyDown);
 			window.removeEventListener('mousemove', revealHud);
 			document.removeEventListener('click', handleClickOutside);
+			if (processingPollTimer) clearInterval(processingPollTimer);
 		};
 	});
+
+	$: if (documentData?.processing_status === 'processing' && browser) {
+		// Poll for processing completion
+		if (!processingPollTimer && documentData?.id) {
+			const docId = documentData.id;
+			processingPollTimer = setInterval(async () => {
+				try {
+					const { DocumentAPI } = await import('$lib/api');
+					const updated = await DocumentAPI.getDocument(docId);
+					if (updated.processing_status !== 'processing') {
+						documentData = normalizeDocument(updated);
+						if (processingPollTimer) {
+							clearInterval(processingPollTimer);
+							processingPollTimer = null;
+						}
+					}
+				} catch (e) {
+					console.error('Polling failed:', e);
+				}
+			}, 2000);
+		}
+	} else if (documentData?.processing_status === 'ready' && processingPollTimer) {
+		clearInterval(processingPollTimer);
+		processingPollTimer = null;
+	}
 
 	onDestroy(() => {
 		savePosition();
 		if (hudTimer) clearTimeout(hudTimer);
+		if (processingPollTimer) clearInterval(processingPollTimer);
 	});
 
 	function handleReaderScroll() {
@@ -617,6 +657,7 @@
 				<ArticleContent
 					blocks={displayedBlocks}
 					loading={loadingPosition && !documentData}
+					processing={documentData?.processing_status === 'processing'}
 					{currentTheme}
 				/>
 			</div>
