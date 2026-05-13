@@ -486,25 +486,34 @@
 		};
 	});
 
-	$: processingProgress = documentData?.metadata?.processed_pages != null && documentData?.metadata?.page_count
-		? Math.min(Math.round((documentData.metadata.processed_pages / documentData.metadata.page_count) * 100), 100)
-		: 0;
-
 	$: if (documentData?.processing_status === 'processing' && browser) {
 		if (!processingPollTimer && documentData?.id) {
 			const docId = documentData.id;
+			let pollCount = 0;
+			const MAX_POLLS = 60; // 60 × 2 s = 120 s max, same as iOS
+
 			processingPollTimer = setInterval(async () => {
+				pollCount++;
+
+				// Hard stop after 120 s — show whatever content we have
+				if (pollCount > MAX_POLLS) {
+					clearInterval(processingPollTimer!);
+					processingPollTimer = null;
+					if (documentData) documentData = { ...documentData, processing_status: 'ready' };
+					return;
+				}
+
 				try {
 					const { DocumentAPI } = await import('$lib/api');
-					// Use the lightweight optimized endpoint (mirrors iOS strategy):
-					// returns partial pages during processing (202) and full pages when ready (200).
 					const optimized = await DocumentAPI.getOptimizedDocument(docId);
+
+					// null = 304 Not Modified, nothing changed
+					if (optimized === null) return;
 
 					const updatedDoc: Document = { ...documentData! };
 					updatedDoc.processing_status = optimized.processing_status as Document['processing_status'];
 
 					if (Array.isArray(optimized.pages) && optimized.pages.length > 0) {
-						// Show partial content immediately as pages become available
 						updatedDoc.content = optimized.pages.map((pageText: string, idx: number) => ({
 							content: pageText || '',
 							type: 'paragraph' as const,
@@ -512,17 +521,10 @@
 							page_number: idx + 1,
 							position: 0
 						}));
-						updatedDoc.metadata = {
-							...updatedDoc.metadata,
-							processed_pages: optimized.pages.length
-						};
 					}
 
 					documentData = updatedDoc;
 
-					// Stop polling when done OR when all expected pages are already available
-					// (guards against a backend bug where processing_status stays 'processing'
-					// even after all pages have been written to optimized_content)
 					const isDone = optimized.processing_status !== 'processing';
 					const allPagesAvailable =
 						updatedDoc.metadata.page_count > 0 &&
@@ -534,12 +536,11 @@
 						updatedDoc.processing_status = 'ready';
 						documentData = updatedDoc;
 
-						// Fetch full document for rich content (headings, proper block types, etc.)
 						try {
 							const full = await DocumentAPI.getDocument(docId);
 							documentData = normalizeDocument(full);
 						} catch {
-							// Keep partial content already shown
+							// keep partial content
 						}
 					}
 				} catch (e) {
@@ -667,8 +668,6 @@
 				<ArticleContent
 					blocks={displayedBlocks}
 					loading={loadingPosition && !documentData}
-					processing={documentData?.processing_status === 'processing'}
-					processingProgress={processingProgress}
 					{currentTheme}
 				/>
 			</div>
