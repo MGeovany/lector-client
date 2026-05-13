@@ -407,21 +407,6 @@
 		}
 	}
 
-		preferencesLoaded = true; // Set early to prevent multiple calls
-		try {
-			console.log('Loading saved preferences from API...');
-			const prefs = await loadPreferences();
-			console.log('Loaded preferences from API:', prefs);
-			if (!preferencesApplied) {
-				applyPreferences(prefs);
-				preferencesApplied = true;
-			}
-		} catch (error) {
-			console.error('Failed to load preferences:', error);
-			// If preferences don't exist yet, that's okay - use defaults
-		}
-	}
-
 	function applyPreferences(prefs: any) {
 		// Map backend preferences to local state
 		// Use explicit assignments to trigger reactivity
