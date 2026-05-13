@@ -79,6 +79,7 @@ export interface DocumentMetadata {
 	format?: string;
 	source?: DocumentSource;
 	has_password?: boolean;
+	processed_pages?: number;
 }
 
 // ===============================
