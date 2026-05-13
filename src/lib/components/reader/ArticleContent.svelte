@@ -4,19 +4,10 @@
 
 	export let blocks: TextBlock[];
 	export let loading: boolean;
-	export let processing: boolean = false;
-	export let processingProgress: number = 0;
 	export let currentTheme: { text: string };
 </script>
 
-{#if processing && blocks.length === 0}
-	<div class="py-16 text-center text-sm" style={`color: var(--muted-color);`}>
-		<div class="inline-flex items-center gap-2">
-			<Loader class="h-5 w-5 animate-spin" style={`color: var(--muted-color);`} />
-			<span>Processing… {processingProgress}%</span>
-		</div>
-	</div>
-{:else if loading && blocks.length === 0}
+{#if loading && blocks.length === 0}
 	<div class="py-16 text-center text-sm" style={`color: var(--muted-color);`}>
 		<div class="inline-flex items-center gap-2">
 			<Loader class="h-5 w-5 animate-spin" style={`color: var(--muted-color);`} />

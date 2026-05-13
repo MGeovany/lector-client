@@ -64,8 +64,13 @@ export class DocumentAPI {
 		processing_status: string;
 		optimized_version?: number;
 		processed_at?: string | null;
-	}> {
-		const response = await apiClient.get(`/documents/${id}/optimized`);
+	} | null> {
+		const response = await apiClient.get(`/documents/${id}/optimized`, {
+			// Accept 304 Not Modified as a valid response (Axios rejects non-2xx by default)
+			validateStatus: (status) => (status >= 200 && status < 300) || status === 304
+		});
+		// 304 = content unchanged, nothing to update
+		if (response.status === 304) return null;
 		return response.data;
 	}
 
