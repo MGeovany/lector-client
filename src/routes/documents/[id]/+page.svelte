@@ -317,7 +317,6 @@
 			// Apply position from store immediately to avoid flash
 			currentPage = Math.min(savedPosition.page_number, totalPages);
 			positionLoaded = true;
-			console.log('Applied position from store:', currentPage);
 			return;
 		}
 	}
@@ -419,22 +418,11 @@
 	}
 
 	function applyPreferences(prefs: any) {
-		// Map backend preferences to local state
-		// Use explicit assignments to trigger reactivity
-		console.log('Applying preferences:', prefs);
-
-		// Always apply font_size if present
 		if (prefs.font_size !== undefined && prefs.font_size !== null && prefs.font_size > 0) {
 			fontSize = Number(prefs.font_size);
-			console.log('✓ Set font size to:', fontSize);
-		} else {
-			console.log('⚠ Font size not found or invalid:', prefs.font_size);
 		}
 
-		// Always apply font_family if present
 		if (prefs.font_family) {
-			// Map font family string to FontKey
-			// Backend stores label (e.g., "Roboto", "Montserrat"), we need to find matching key
 			const fontKey = fontOptions.find(
 				(f) =>
 					f.key === prefs.font_family.toLowerCase() ||
@@ -442,20 +430,9 @@
 			)?.key;
 			if (fontKey) {
 				fontFamily = fontKey;
-				console.log('✓ Set font family to:', fontFamily, 'from backend:', prefs.font_family);
-			} else {
-				console.warn(
-					'⚠ Could not find font key for:',
-					prefs.font_family,
-					'available keys:',
-					fontOptions.map((f) => f.key)
-				);
 			}
-		} else {
-			console.log('⚠ Font family not found:', prefs.font_family);
 		}
 
-		// Always apply theme if present
 		if (prefs.theme) {
 			const themeStr = String(prefs.theme);
 			if (themeStr === 'light' || themeStr === 'day') {
@@ -463,14 +440,10 @@
 			} else if (themeStr === 'dark' || themeStr === 'night') {
 				theme = 'night';
 			}
-			console.log('✓ Set theme to:', theme, 'from backend:', prefs.theme);
-		} else {
-			console.log('⚠ Theme not found:', prefs.theme);
 		}
 
 		if (prefs.line_height && prefs.line_height > 0) {
 			lineHeight = prefs.line_height;
-			console.log('✓ Set line height to:', lineHeight);
 		}
 	}
 

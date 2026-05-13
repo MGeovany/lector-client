@@ -31,8 +31,6 @@ export function initializeAuth() {
 
 	// Listen for auth changes
 	supabase.auth.onAuthStateChange((event, newSession) => {
-		console.log('Auth state changed:', event, newSession?.user?.email);
-
 		session.set(newSession);
 		if (newSession) {
 			isAuthenticated.set(true);
