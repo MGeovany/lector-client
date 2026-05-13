@@ -25,15 +25,6 @@
 	</div>
 {:else if blocks.length}
 	<div class="pb-20">
-		{#if processing}
-			<div
-				class="mb-8 flex items-center gap-2 rounded-md px-3 py-2 text-xs"
-				style={`color: var(--muted-color); background: var(--bg-container);`}
-			>
-				<Loader class="h-3 w-3 flex-shrink-0 animate-spin" style={`color: var(--muted-color);`} />
-				<span>Processing… {processingProgress}% — more pages will appear shortly</span>
-			</div>
-		{/if}
 		{#each blocks as block ((block.page_number ?? 0) + '-' + (block.position ?? 0))}
 			{#if block.type === 'heading'}
 				<h2
