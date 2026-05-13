@@ -79,7 +79,8 @@
 	// Initialize from store if available, otherwise use defaults
 	function initializePreferencesFromStore() {
 		const prefs = get(userPreferences);
-		if (prefs?.theme) {
+		// Only use store values if the API has actually populated them (user_id is set).
+		if (prefs?.user_id && prefs?.theme) {
 			let themeValue: 'day' | 'night' = 'night';
 			const themeStr = String(prefs.theme);
 			if (themeStr === 'light' || themeStr === 'day') {
@@ -386,9 +387,9 @@
 	async function loadSavedPreferences() {
 		if (preferencesLoaded) return;
 
-		// Check if preferences are already in store.
+		// Check if preferences are already in store (backed by a real API load).
 		const storePrefs = get(userPreferences);
-		if (storePrefs?.theme && !preferencesApplied) {
+		if (storePrefs?.user_id && !preferencesApplied) {
 			applyPreferences(storePrefs);
 			preferencesApplied = true;
 			preferencesLoaded = true;
