@@ -1,16 +1,36 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { initializeAuth, authLoading } from '$lib/stores/auth';
+	import { initializeAuth, authLoading, isAuthenticated } from '$lib/stores/auth';
+	import { loadPreferences, userPreferences } from '$lib/stores/preferences';
 	import { Toaster } from 'svelte-sonner';
 	import { page } from '$app/stores';
 	import '../app.css';
+
+	let htmlEl: HTMLElement | null = null;
+	let prefsLoaded = false;
+
+	// Toggle .dark class on <html> whenever the theme in the store changes.
+	$: if (browser && $userPreferences?.theme) {
+		htmlEl = htmlEl || document.documentElement;
+		if ($userPreferences.theme === 'dark') {
+			htmlEl.classList.add('dark');
+		} else {
+			htmlEl.classList.remove('dark');
+		}
+	}
 
 	onMount(() => {
 		if (browser) {
 			initializeAuth();
 		}
 	});
+
+	// Load preferences once auth is ready.
+	$: if ($isAuthenticated && browser && !prefsLoaded) {
+		prefsLoaded = true;
+		loadPreferences();
+	}
 </script>
 
 <svelte:head>
