@@ -102,6 +102,7 @@ export interface Document {
 	reading_position?: ReadingPosition;
 
 	processing_status?: 'uploaded' | 'processing' | 'ready' | 'failed';
+	optimized_content?: string[];
 
 	created_at: string;
 	updated_at: string;
