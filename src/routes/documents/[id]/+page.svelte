@@ -496,13 +496,51 @@
 			processingPollTimer = setInterval(async () => {
 				try {
 					const { DocumentAPI } = await import('$lib/api');
-					const updated = await DocumentAPI.getDocument(docId);
-					if (updated.processing_status !== 'processing') {
-						documentData = normalizeDocument(updated);
+					// Use the lightweight optimized endpoint (mirrors iOS strategy):
+					// returns partial pages during processing (202) and full pages when ready (200).
+					const optimized = await DocumentAPI.getOptimizedDocument(docId);
+
+					const updatedDoc: Document = { ...documentData! };
+					updatedDoc.processing_status = optimized.processing_status as Document['processing_status'];
+
+					if (Array.isArray(optimized.pages) && optimized.pages.length > 0) {
+						// Show partial content immediately as pages become available
+						updatedDoc.content = optimized.pages.map((pageText: string, idx: number) => ({
+							content: pageText || '',
+							type: 'paragraph' as const,
+							level: 0,
+							page_number: idx + 1,
+							position: 0
+						}));
+						updatedDoc.metadata = {
+							...updatedDoc.metadata,
+							processed_pages: optimized.pages.length
+						};
+					}
+
+					documentData = updatedDoc;
+
+					// Stop polling when done OR when all expected pages are already available
+					// (guards against a backend bug where processing_status stays 'processing'
+					// even after all pages have been written to optimized_content)
+					const isDone = optimized.processing_status !== 'processing';
+					const allPagesAvailable =
+						updatedDoc.metadata.page_count > 0 &&
+						optimized.pages.length >= updatedDoc.metadata.page_count;
+
+					if (isDone || allPagesAvailable) {
 						clearInterval(processingPollTimer!);
 						processingPollTimer = null;
-					} else {
-						documentData = normalizeDocument(updated);
+						updatedDoc.processing_status = 'ready';
+						documentData = updatedDoc;
+
+						// Fetch full document for rich content (headings, proper block types, etc.)
+						try {
+							const full = await DocumentAPI.getDocument(docId);
+							documentData = normalizeDocument(full);
+						} catch {
+							// Keep partial content already shown
+						}
 					}
 				} catch (e) {
 					console.error('Polling failed:', e);

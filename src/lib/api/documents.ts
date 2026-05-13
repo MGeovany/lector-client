@@ -54,6 +54,22 @@ export class DocumentAPI {
 	}
 
 	/**
+	 * Get optimized document — lightweight endpoint that returns page strings progressively
+	 * while processing (202 status) and full pages when ready (200 status).
+	 * Mirrors the iOS /documents/{id}/optimized polling strategy.
+	 */
+	static async getOptimizedDocument(id: string): Promise<{
+		document_id: string;
+		pages: string[];
+		processing_status: string;
+		optimized_version?: number;
+		processed_at?: string | null;
+	}> {
+		const response = await apiClient.get(`/documents/${id}/optimized`);
+		return response.data;
+	}
+
+	/**
 	 * Delete a document
 	 */
 	static async deleteDocument(id: string): Promise<void> {
